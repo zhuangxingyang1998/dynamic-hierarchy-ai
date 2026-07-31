@@ -2,6 +2,8 @@
 
 This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham; it does not claim that a dynamic hierarchy has been learned.
 
+For a plain-language explanation of the idea, experiment, current evidence, and next step, see the [Chinese research overview](docs/research-overview-zh.md). Its shortest accurate summary is: **we have shown that correct structure is worth learning, but not yet that a model can learn that structure by itself.**
+
 ## Status
 
 **Implemented facts**
