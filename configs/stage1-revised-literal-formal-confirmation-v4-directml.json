@@ -1,0 +1,146 @@
+{
+  "revision": "revised-v2",
+  "operand_mode": "literal",
+  "seed": 991501,
+  "device": "directml",
+  "optimizer_steps": 8000,
+  "time_budget_minutes": 300,
+  "microbatch_size": 14,
+  "gradient_accumulation": 4,
+  "learning_rate": 0.001,
+  "cpu_threads": 2,
+  "deterministic": false,
+  "yield_ms": 10,
+  "eval_batches": 1,
+  "eval_length_scales": [1],
+  "eval_interval_steps": 1000,
+  "heartbeat_examples": 14,
+  "final_eval_examples_per_seed": 10010,
+  "final_eval_batch_size": 70,
+  "eval_seeds": [992501, 992519, 992531],
+  "confirmation_training_seeds": [991501, 991511, 991531, 991541, 991547, 991567, 991579, 991589],
+  "minimum_confirmation_training_seeds": 8,
+  "formal_evaluation": true,
+  "requires_candidate_pass": true,
+  "candidate_prerequisite_result_path": "runs/stage1-20260730T152137Z/result.json",
+  "candidate_prerequisite_config_digest": "6dc56311c9240c23cee7b275646a8abb959e3a0d2f5223fb91c3b4b52673e735",
+  "candidate_prerequisite_manifest_hash": "beba1ff1590f8d5335bcd4860247455a38564075c91b4fef7d74b9950ca1ebfc",
+  "candidate_prerequisite_snapshot_manifest_hash": "24ab7b89da10e913f32d7630893cffd19aff20ad85302c0b04acfc18cdb3ca6e",
+  "candidate_prerequisite_result_digest": "6F964AE37B7354FB0F8E3B228F4BF3BF0B34C90CE6BC820F312BECAD8B49D615",
+  "candidate_prerequisite_experiment_spec_digest": "3bbd419242e354584c220e8436de0d9691b9c570f81688fc3fdccb20b85efa93",
+  "candidate_prerequisite_compatibility_spec_digest": "7303d6c121b170e7f9b2ed7ba043af7ab19dc175478860aaa2e3d87be81c7025",
+  "confirmation_familywise_alpha": 0.05,
+  "confirmation_ci_method": "paired_training_seed_t",
+  "confirmation_multiplicity_correction": "bonferroni",
+  "foundation_gate_required": true,
+  "foundation_eval_examples": 700,
+  "foundation_eval_batch_size": 70,
+  "foundation_eval_seed": 992549,
+  "foundation_c0_min_accuracy": 0.99,
+  "foundation_c1_min_accuracy": 0.98,
+  "max_generation_attempts_per_example": 256,
+  "max_evaluation_generation_attempts_per_example": 256,
+  "checkpoint_steps": 100,
+  "checkpoint_minutes": 5,
+  "heartbeat_seconds": 20,
+  "resource_sample_seconds": 5,
+  "cpu_pause_percent": 85,
+  "cpu_resume_percent": 75,
+  "ram_pause_gb": 6,
+  "ram_resume_gb": 8,
+  "pressure_samples": 3,
+  "recovery_samples": 2,
+  "tasks": ["nested_expression"],
+  "training_topologies": ["skew", "balanced"],
+  "held_out_topologies": ["branched"],
+  "curriculum": [
+    {
+      "name": "literal_c0",
+      "steps": 200,
+      "profiles": [
+        {"name": "c0", "depth": 0, "topology": "leaf"}
+      ]
+    },
+    {
+      "name": "literal_c1",
+      "steps": 1600,
+      "profiles": [
+        {"name": "c0_rehearsal", "depth": 0, "topology": "leaf"},
+        {"name": "c1_a", "depth": 1, "topology": "skew"},
+        {"name": "c1_b", "depth": 1, "topology": "skew"},
+        {"name": "c1_c", "depth": 1, "topology": "skew"}
+      ]
+    },
+    {
+      "name": "literal_depth_2",
+      "steps": 1800,
+      "profiles": [
+        {"name": "c0_rehearsal", "depth": 0, "topology": "leaf"},
+        {"name": "c1_rehearsal", "depth": 1, "topology": "skew"},
+        {"name": "depth2_skew", "depth": 2, "topology": "skew"},
+        {"name": "depth2_balanced", "depth": 2, "topology": "balanced"}
+      ]
+    },
+    {
+      "name": "literal_depth_3",
+      "steps": 1800,
+      "profiles": [
+        {"name": "c0_rehearsal", "depth": 0, "topology": "leaf"},
+        {"name": "c1_rehearsal", "depth": 1, "topology": "skew"},
+        {"name": "depth3_skew", "depth": 3, "topology": "skew"},
+        {"name": "depth3_balanced", "depth": 3, "topology": "balanced"}
+      ]
+    },
+    {
+      "name": "literal_rehearsal",
+      "steps": 2600,
+      "profiles": [
+        {"name": "c0", "depth": 0, "topology": "leaf"},
+        {"name": "c1_a", "depth": 1, "topology": "skew"},
+        {"name": "c1_b", "depth": 1, "topology": "skew"},
+        {"name": "c1_c", "depth": 1, "topology": "skew"},
+        {"name": "depth2_skew", "depth": 2, "topology": "skew"},
+        {"name": "depth2_balanced", "depth": 2, "topology": "balanced"},
+        {"name": "depth3_skew", "depth": 3, "topology": "skew"},
+        {"name": "depth3_balanced", "depth": 3, "topology": "balanced"}
+      ]
+    }
+  ],
+  "evaluation_splits": [
+    {"name": "id_depth3_skew", "depth": 3, "topology": "skew", "category": "in_distribution", "shape_partition": "train", "required_above_majority": true},
+    {"name": "id_depth3_balanced", "depth": 3, "topology": "balanced", "category": "in_distribution", "shape_partition": "train", "required_above_majority": true},
+    {"name": "depth5_skew", "depth": 5, "topology": "skew", "category": "depth_extrapolation", "shape_partition": "heldout", "required_above_majority": true},
+    {"name": "heldout_shape_depth3_branched", "depth": 3, "topology": "branched", "category": "topology_extrapolation", "shape_partition": "heldout", "required_above_majority": true}
+  ],
+  "gate": {
+    "minimum_d_advantage_in_distribution": 0.03,
+    "minimum_d_advantage_extrapolation": 0.02,
+    "minimum_d_over_sham_in_distribution": 0.03,
+    "minimum_d_over_sham_extrapolation": 0.02,
+    "minimum_above_majority": 0.03,
+    "require_all_in_distribution_splits": true,
+    "baseline_policy": "privileged_structure_posthoc_v1"
+  },
+  "data": {
+    "vocab_size": 64,
+    "repeat_length": 6,
+    "binding_pairs": 4,
+    "expression_depth": 3,
+    "expression_variables": 6,
+    "expression_values": 7
+  },
+  "model_a": {
+    "embedding_dim": 32,
+    "heads": 4,
+    "layers": 2,
+    "feedforward_dim": 64,
+    "dropout": 0.0
+  },
+  "model_d": {
+    "embedding_dim": 32,
+    "heads": 4,
+    "layers": 1,
+    "feedforward_dim": 64,
+    "dropout": 0.0
+  }
+}

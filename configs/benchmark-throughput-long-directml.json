@@ -1,0 +1,25 @@
+{
+  "seed": 27182,
+  "device": "directml",
+  "steps": 40,
+  "warmup_steps": 5,
+  "batch_size": 16,
+  "learning_rate": 0.001,
+  "eval_batches": 1,
+  "eval_length_scales": [1],
+  "cpu_threads": 6,
+  "deterministic": false,
+  "tasks": ["repeat_symbol", "variable_binding"],
+  "data": {
+    "vocab_size": 128,
+    "repeat_length": 32,
+    "binding_pairs": 16
+  },
+  "model": {
+    "embedding_dim": 256,
+    "heads": 8,
+    "layers": 6,
+    "feedforward_dim": 1024,
+    "dropout": 0.0
+  }
+}

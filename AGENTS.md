@@ -1,0 +1,24 @@
+# Project Instructions
+
+- Keep the Stage 0 baseline configuration-driven and semantically identical across CPU and DirectML.
+- Preserve both `.venv` and `.venv-directml`; never mix or overwrite their lock files or dependency sets.
+- CPU smoke runs use strict deterministic algorithms. Performance benchmarks may explicitly set `deterministic=false` on both backends; DirectML rejects `deterministic=true`.
+- Keep the candidate hierarchy disconnected from the ordinary Transformer baseline on both backends.
+- Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. D models may consume generator tree references, but never targets, binding values, rejection metadata, or intermediate arithmetic values.
+- D accepts only `StructureOnlyBatch`; passing complete generator truth is a runtime type error. Structure annotations contain topology and source indices only.
+- D-true is a privileged-structure diagnostic, not an upper bound. D-sham deterministically misaligns source references while preserving architecture and compose count.
+- Revised outputs are exactly seven legal classes over prime-modulus arithmetic; exact balance is obtained algebraically after structure generation.
+- Revised training supports skew and balanced shapes and holds branched shapes out. Shape IDs and content hashes must remain auditable.
+- No single training seed can unblock Stage 2; formal confirmation requires all configured eight training seeds and at least 10,000 examples per split/content-seed.
+- Background Stage 1 runs execute only from their frozen `runs/stage1-*/snapshot` source and resume from that same snapshot.
+- Preserve checkpoint, status, control, stdout, and stderr artifacts. Duplicate checks use the heartbeat worker PID and matching command line/run path, not merely the virtual-environment launcher PID.
+- Record every observed DirectML warning or error and the lack of a public fallback counter. Never infer zero fallback from zero Python warnings.
+- Benchmark timing must synchronize an updated model parameter before the timer and after the final measured optimizer write.
+- Cooperative Stage 1 workers use two CPU threads, BelowNormal priority when available, hysteretic CPU/RAM pausing, and an explicit yield after every optimizer update.
+- Checkpoint recovery is at-least-once: a crash may replay up to one configured checkpoint step interval. Never describe it as exact-once.
+- Future workers hold a per-run Windows named mutex; launchers also hold an exclusive launch lock across check/start/PID publication.
+- Preserve generated task truth for evaluation and diagnostics, but do not pass it to the model input.
+- Do not describe candidate hierarchy mechanisms as validated research results.
+- Do not remove source files without checking the exact target and preserving a recoverable replacement.
+- Update `docs/development-log.md` when commands, environment constraints, or implementation scope change.
+- The Windows username contains a backtick. PowerShell file commands must use single-quoted paths with `-LiteralPath` where that parameter exists. For directory creation, use a .NET exact-path API because `New-Item` has no `-LiteralPath` parameter.

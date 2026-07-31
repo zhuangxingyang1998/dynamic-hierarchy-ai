@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "campaign": "literal-formal-confirmation-v4",
+  "decision": "formal_confirmation_passed",
+  "stage2_unblocked": true,
+  "publication_transform": "absolute paths under the local project root are converted to repository-relative POSIX paths; scientific fields are unchanged",
+  "aggregate": {
+    "path": "aggregate.json",
+    "sha256": "95F4147F05CD31C1133418AF17A2F3061B37044A265D7FF0BB0BB06EBEE15631",
+    "byte_identical_to_source": true
+  },
+  "campaign_manifest": {
+    "path": "campaign-manifest.json",
+    "sha256": "809AC5703E1FFC4C59E7DCE9C129050E9A062B8B1F10C95A7651439B9888D9B8",
+    "byte_identical_to_source": true
+  },
+  "results": [
+    {
+      "training_seed": 991501,
+      "source_path": "runs/stage1-formal-v4-01-991501-20260731T003527Z/result.json",
+      "source_sha256": "033D7465517CD3B9B0E4D27F0C5579799F551C54DCD34D0996999A2A19D109FA",
+      "published_path": "results/991501.json",
+      "published_sha256": "6F564928A75A3EDC9F6CAFFC48724DA10F499DD52B59393955BB9B0633D1CD02",
+      "project_path_replacements": 1
+    },
+    {
+      "training_seed": 991511,
+      "source_path": "runs/stage1-formal-v4-02-991511-20260731T013849Z/result.json",
+      "source_sha256": "0D840726D46132B0E0C3FB3970D485A830317E2679D857158CDE35B2D96ACE53",
+      "published_path": "results/991511.json",
+      "published_sha256": "3584B113F7D5C834DE9220447854DE668E71E587733703954CB3157192B45F88",
+      "project_path_replacements": 1
+    },
+    {
+      "training_seed": 991531,
+      "source_path": "runs/stage1-formal-v4-03-991531-20260731T024111Z/result.json",
+      "source_sha256": "32643472B8F4A621087700EB1A65E87C8F96FA4743B5CB58EFAE194D2B0655D4",
+      "published_path": "results/991531.json",
+      "published_sha256": "D0AAA3DF03D9DBB88D6A5667A400BC07C9720A4D5F92048F4322AEE18E033B78",
+      "project_path_replacements": 1
+    },
+    {
+      "training_seed": 991541,
+      "source_path": "runs/stage1-formal-v4-04-991541-20260731T034253Z/result.json",
+      "source_sha256": "92D3508062B6DF5594FEA14C61932911BC5518ED3324E2826259116B388C408A",
+      "published_path": "results/991541.json",
+      "published_sha256": "2C095CF1B46036CE9D16E9038A42CE9B84D96EAE880312C9A935086A407F9201",
+      "project_path_replacements": 1
+    },
+    {
+      "training_seed": 991547,
+      "source_path": "runs/stage1-formal-v4-05-991547-20260731T044356Z/result.json",
+      "source_sha256": "DDA936102A710E25341C1881390E73011FF949F6DA4C99F952D267D62A2C384A",
+      "published_path": "results/991547.json",
+      "published_sha256": "ACB24DF0354CC9CE00595C8072D251EF1DCB79D7332C0B7BCF58B60F621E2999",
+      "project_path_replacements": 1
+    },
+    {
+      "training_seed": 991567,
+      "source_path": "runs/stage1-formal-v4-06-991567-20260731T054538Z/result.json",
+      "source_sha256": "AED3206ED57AA2EB88FF044EBED7EF7991C753EE37FD67D9F6194FD91C6F8305",
+      "published_path": "results/991567.json",
+      "published_sha256": "1EFF42D93CA702935A1674ECE251BC38B9DFE2F0A48279A6E68A916CF48602F1",
+      "project_path_replacements": 1
+    },
+    {
+      "training_seed": 991579,
+      "source_path": "runs/stage1-formal-v4-07-991579-20260731T065040Z/result.json",
+      "source_sha256": "BDDD9FC5E7B570BA1F45BE957D69AFD5AF7373E4CFE22981D8B4762394133FAC",
+      "published_path": "results/991579.json",
+      "published_sha256": "FA6D2989C3AD56607D8ECC3B5A4D057FD72EFC297FC88DF797AD5C9E46ABA40C",
+      "project_path_replacements": 1
+    },
+    {
+      "training_seed": 991589,
+      "source_path": "runs/stage1-formal-v4-08-991589-20260731T075226Z/result.json",
+      "source_sha256": "9EEDE58007CD2C01484F3FB1A5B2DAC960A573C1A370B67AC5FD27C8C7D312F8",
+      "published_path": "results/991589.json",
+      "published_sha256": "07702D69D61C24180C631FA6124A16516C8F87DFBD8C8DCCDBC4E3ABDAC6435B",
+      "project_path_replacements": 1
+    }
+  ]
+}

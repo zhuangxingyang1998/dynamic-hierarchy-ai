@@ -1,0 +1,48 @@
+{
+  "seed": 7301,
+  "device": "cpu",
+  "optimizer_steps": 2,
+  "time_budget_minutes": 1,
+  "microbatch_size": 2,
+  "gradient_accumulation": 2,
+  "learning_rate": 0.001,
+  "cpu_threads": 2,
+  "deterministic": true,
+  "yield_ms": 0,
+  "eval_batches": 1,
+  "eval_length_scales": [1, 2, 4],
+  "eval_interval_steps": 1,
+  "checkpoint_steps": 1,
+  "checkpoint_minutes": 5,
+  "heartbeat_seconds": 1,
+  "resource_sample_seconds": 1,
+  "cpu_pause_percent": 85,
+  "cpu_resume_percent": 75,
+  "ram_pause_gb": 6,
+  "ram_resume_gb": 8,
+  "pressure_samples": 3,
+  "recovery_samples": 2,
+  "tasks": ["nested_expression"],
+  "data": {
+    "vocab_size": 64,
+    "repeat_length": 6,
+    "binding_pairs": 4,
+    "expression_depth": 2,
+    "expression_variables": 4,
+    "expression_values": 8
+  },
+  "model_a": {
+    "embedding_dim": 32,
+    "heads": 4,
+    "layers": 2,
+    "feedforward_dim": 64,
+    "dropout": 0.0
+  },
+  "model_d": {
+    "embedding_dim": 32,
+    "heads": 4,
+    "layers": 1,
+    "feedforward_dim": 64,
+    "dropout": 0.0
+  }
+}

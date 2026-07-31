@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "campaign_version": "literal-formal-confirmation-v4",
+  "formal_config_path": "configs/stage1-revised-literal-formal-confirmation-v4-directml.json",
+  "config_digest": "08a0e232e84b10574b900a2b944df0786901c5bebdd872047d2d000405d34dee",
+  "validated_experiment_spec_digest": "63a3f561c8c802a1c05eabb4f531c4ddc00ecb3750e2b989c838e260f6ba5275",
+  "validated_experiment_compatibility_spec_digest": "7303d6c121b170e7f9b2ed7ba043af7ab19dc175478860aaa2e3d87be81c7025",
+  "snapshot_manifest_hash": "9517bc53e9f2a4950001409d0ac001fff1efff2ebf1def2bcc404d7e5ae5ef27",
+  "source_manifest_hash": "47ad080b7559a2bbf91d54eb33af7ea7fb99902b8f237bc39c04169da66ddcf8",
+  "environment_receipt_digest": "c3621efdb8562b6aff508e8121ea460191e15ee0b478e4b5fd4e7bb9d38f546f",
+  "candidate_identity_digest": "a3bdecb574d2175469b071c919e09872ee22927aa0264d8f77e8f75c7aff5db5",
+  "candidate_result_digest": "6f964ae37b7354fb0f8e3b228f4bf3bf0b34c90ce6bc820f312becad8b49d615",
+  "candidate_pins": {
+    "config_digest": "6dc56311c9240c23cee7b275646a8abb959e3a0d2f5223fb91c3b4b52673e735",
+    "manifest_hash": "beba1ff1590f8d5335bcd4860247455a38564075c91b4fef7d74b9950ca1ebfc",
+    "snapshot_manifest_hash": "24ab7b89da10e913f32d7630893cffd19aff20ad85302c0b04acfc18cdb3ca6e",
+    "result_digest": "6F964AE37B7354FB0F8E3B228F4BF3BF0B34C90CE6BC820F312BECAD8B49D615",
+    "experiment_spec_digest": "3bbd419242e354584c220e8436de0d9691b9c570f81688fc3fdccb20b85efa93",
+    "compatibility_spec_digest": "7303d6c121b170e7f9b2ed7ba043af7ab19dc175478860aaa2e3d87be81c7025"
+  },
+  "training_seeds": [
+    991501,
+    991511,
+    991531,
+    991541,
+    991547,
+    991567,
+    991579,
+    991589
+  ],
+  "evaluation_seeds": [
+    992501,
+    992519,
+    992531
+  ],
+  "foundation_seed": 992549,
+  "manifest_hash": "7a42b0741e339b2caa8636890fc0ad7f35c45e545a1243c9316c4ef52081dcb9"
+}
