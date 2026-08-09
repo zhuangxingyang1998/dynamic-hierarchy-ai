@@ -7,6 +7,7 @@ from tempfile import TemporaryDirectory
 
 import torch
 
+from dynamic_hierarchy.data import MergeSourceReference
 from dynamic_hierarchy.stage2_config import (
     Stage2ModelSpec,
     Stage2Profile,
@@ -34,6 +35,103 @@ class Stage2DataTests(unittest.TestCase):
         config = stage2_config_from_dict({})
         self.assertTrue(config.train_profiles)
         self.assertTrue(all(isinstance(profile, Stage2Profile) for profile in config.train_profiles))
+
+    def test_r2_to_dict_omits_r3_only_fields_when_loaded_from_legacy_dict(self) -> None:
+        legacy_r2 = {
+            "revision": "stage2-r2",
+            "run_kind": "smoke",
+            "seed": 821101,
+            "device": "cpu",
+            "deterministic": True,
+            "cpu_threads": 1,
+            "optimizer_steps": 1,
+            "learning_rate": 0.001,
+            "families_per_stratum": 42,
+            "max_generation_attempts_per_family": 512,
+            "checkpoint_steps": 1,
+            "evaluation_blocks": 1,
+            "time_budget_minutes": 5.0,
+            "yield_ms": 0,
+            "cpu_pause_percent": 90.0,
+            "cpu_resume_percent": 75.0,
+            "ram_pause_gb": 4.0,
+            "ram_resume_gb": 6.0,
+            "pressure_samples": 3,
+            "recovery_samples": 2,
+            "controls": [
+                "A-Q-param",
+                "A-Q-flop",
+                "A-recur",
+                "B-query",
+                "B-noQ-router",
+                "B-sham",
+                "F-stop",
+                "F-left",
+                "F-right",
+                "F-add",
+                "F-sub",
+                "D-true",
+                "D-sham",
+            ],
+            "train_profiles": [
+                {
+                    "name": "tiny_train",
+                    "leaf_count": 3,
+                    "operator_pattern": "-+",
+                    "category": "train",
+                }
+            ],
+            "evaluation_profiles": [
+                {
+                    "name": "tiny_eval",
+                    "leaf_count": 3,
+                    "operator_pattern": "-+",
+                    "category": "in_distribution",
+                }
+            ],
+            "model": {
+                "vocab_size": 64,
+                "hidden_dim": 8,
+                "heads": 2,
+                "layers": 1,
+                "feedforward_dim": 16,
+                "dropout": 0.0,
+                "temperature": 1.0,
+            },
+            "a_param_model": {
+                "vocab_size": 64,
+                "hidden_dim": 8,
+                "heads": 2,
+                "layers": 3,
+                "feedforward_dim": 16,
+                "dropout": 0.0,
+                "temperature": 1.0,
+            },
+            "a_flop_model": {
+                "vocab_size": 64,
+                "hidden_dim": 8,
+                "heads": 2,
+                "layers": 2,
+                "feedforward_dim": 16,
+                "dropout": 0.0,
+                "temperature": 1.0,
+            },
+        }
+        config = stage2_config_from_dict(legacy_r2)
+        serialized = config.to_dict()
+        self.assertEqual(config.phase, "routing")
+        self.assertNotIn("phase", serialized)
+        for key in (
+            "feasibility_min_accuracy",
+            "feasibility_max_cross_entropy",
+            "routing_required_iid_accuracy",
+            "routing_min_advantage_over_blind_and_sham",
+            "routing_min_advantage_over_best_fixed",
+            "routing_min_exact_tree_rate",
+            "routing_max_query_identical_trace_rate",
+            "routing_min_ood_advantage",
+        ):
+            self.assertNotIn(key, serialized)
 
     def test_profile_rejects_precedence_insensitive_pattern(self) -> None:
         with self.assertRaisesRegex(ValueError, "precedence-insensitive"):
@@ -138,6 +236,10 @@ class Stage2ModelTests(unittest.TestCase):
         stopped = model(batch, policy="stop")
         self.assertTrue(all(trace.stopped_early for trace in stopped.traces))
         self.assertEqual(stopped.compute.selected_compositions, 0)
+        self.assertEqual(stopped.compute.recurrent_steps, 84)
+        self.assertEqual(stopped.compute.candidate_compositions, 84 * 3)
+        self.assertEqual(stopped.compute.candidate_scores, 84 * 4)
+        self.assertEqual(stopped.compute.stop_scores, 84)
 
     def test_left_policy_recomputes_contiguous_adjacency(self) -> None:
         batch = self._small_batch()
@@ -225,6 +327,82 @@ class Stage2ModelTests(unittest.TestCase):
         )
         self.assertGreater(gradient, 0.0)
 
+    def test_r3_learned_b_has_no_stop_router_and_always_reaches_root(self) -> None:
+        batch = self._small_batch()
+        model = Stage2MergeClassifier(
+            Stage2ModelSpec(hidden_dim=16, heads=4, feedforward_dim=32),
+            allow_stop=False,
+        )
+        self.assertFalse(hasattr(model, "stop_router"))
+        output = model(batch, policy="learned")
+        self.assertEqual(output.compute.stop_scores, 0)
+        self.assertTrue(all(not trace.stopped_early for trace in output.traces))
+        self.assertTrue(all(trace.reached_root for trace in output.traces))
+        loss = torch.nn.functional.cross_entropy(output.logits, batch.labels)
+        loss.backward()
+        router_grad = sum(
+            float(parameter.grad.abs().sum())
+            for parameter in model.router.parameters()
+            if parameter.grad is not None
+        )
+        self.assertGreater(router_grad, 0.0)
+
+    def test_r3_oracle_trace_matches_source_only_tree_with_selected_only_compute(self) -> None:
+        profile = Stage2Profile("oracle", 4, "-+-", "train")
+        generated = Stage2PrecedenceFamilyGenerator(23).balanced_block(profile)
+        batch = generated.ordinary
+        model = Stage2MergeClassifier(
+            Stage2ModelSpec(hidden_dim=16, heads=4, feedforward_dim=32),
+            allow_stop=False,
+        )
+        output = model(
+            batch,
+            policy="oracle",
+            oracle_structure=generated.diagnostic_structure,
+            forced_compute_mode="selected_only",
+        )
+        def oracle_edges(row: int) -> set[tuple[int, int, int]]:
+            result: set[tuple[int, int, int]] = set()
+            spans: dict[int, tuple[int, int]] = {}
+            for node in generated.diagnostic_structure.samples[row].nodes:
+                if isinstance(node, MergeSourceReference):
+                    left = spans[node.left]
+                    right = spans[node.right]
+                    result.add((min(left[0], right[0]), max(left[1], right[1]), node.operator_source_index))
+                    spans[node.node_id] = (min(left[0], right[0]), max(left[1], right[1]))
+                else:
+                    spans[node.node_id] = (node.source_index, node.source_index)
+            return result
+        for row, trace in enumerate(output.traces):
+            predicted = {
+                (step.source_start, step.source_end, step.operator_source_index)
+                for step in trace.steps
+                if step.action == "MERGE"
+            }
+            self.assertEqual(predicted, oracle_edges(row))
+        rows = batch.token_ids.shape[0]
+        merges_per_row = batch.literal_source_indices.shape[1] - 1
+        self.assertEqual(output.compute.stop_scores, 0)
+        self.assertEqual(output.compute.candidate_scores, 0)
+        self.assertEqual(output.compute.selected_compositions, rows * merges_per_row)
+        self.assertEqual(output.compute.candidate_compositions, rows * merges_per_row)
+        with self.assertRaisesRegex(TypeError, "StructureOnlyBatch"):
+            model(batch, policy="oracle", oracle_structure=object())
+
+    def test_fixed_candidate_matched_compute_keeps_all_candidates_explicit(self) -> None:
+        batch = self._small_batch()
+        model = Stage2MergeClassifier(
+            Stage2ModelSpec(hidden_dim=16, heads=4, feedforward_dim=32),
+            allow_stop=False,
+        )
+        output = model(batch, policy="left", forced_compute_mode="candidate_matched")
+        rows = batch.token_ids.shape[0]
+        self.assertEqual(output.compute.selected_compositions, rows * 3)
+        self.assertEqual(output.compute.candidate_compositions, rows * (3 + 2 + 1))
+        self.assertEqual(output.compute.candidate_scores, rows * (3 + 2 + 1))
+        self.assertEqual(output.compute.stop_scores, 0)
+        self.assertGreater(output.compute.candidate_compositions, output.compute.selected_compositions)
+
 
 class Stage2RuntimeTests(unittest.TestCase):
     @staticmethod
@@ -262,6 +440,29 @@ class Stage2RuntimeTests(unittest.TestCase):
                         "category": "in_distribution",
                     }
                 ],
+            }
+        )
+
+    @staticmethod
+    def _r3_feasibility_config():
+        model = {
+            "vocab_size": 64,
+            "hidden_dim": 8,
+            "heads": 2,
+            "layers": 1,
+            "feedforward_dim": 16,
+            "dropout": 0.0,
+            "temperature": 1.0,
+        }
+        return stage2_config_from_dict(
+            {
+                "revision": "stage2-r3",
+                "phase": "feasibility",
+                "optimizer_steps": 3,
+                "cpu_threads": 1,
+                "yield_ms": 0,
+                "model": model,
+                "a_param_model": {**model, "layers": 3},
             }
         )
 
@@ -305,6 +506,134 @@ class Stage2RuntimeTests(unittest.TestCase):
             restored_losses = restored.train_step()
             for name in original_losses:
                 self.assertAlmostEqual(original_losses[name], restored_losses[name], places=6)
+
+    def test_r3_fixed_pools_are_reused_and_checkpoint_restore_keeps_next_update(self) -> None:
+        with TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            original = Stage2Trainer(self._r3_feasibility_config(), run_dir)
+            self.assertEqual(set(original.fixed_train_pools), {"r3_train_n3", "r3_train_n4"})
+            self.assertEqual(len(original.training_family_hashes), 84)
+            first = original.fixed_train_pool_evidence
+            original.train_step()
+            self.assertEqual(original.training_family_exposures, 42)
+            self.assertEqual(original.training_repeated_family_exposures, 0)
+            checkpoint = original.save_checkpoint()
+            restored = Stage2Trainer(self._r3_feasibility_config(), run_dir)
+            self.assertEqual(restored.fixed_train_pool_evidence, first)
+            restored.load_checkpoint(checkpoint)
+            original_losses = original.train_step()
+            restored_losses = restored.train_step()
+            for name in original_losses:
+                self.assertAlmostEqual(original_losses[name], restored_losses[name], places=6)
+            original_losses = original.train_step()
+            restored_losses = restored.train_step()
+            for name in original_losses:
+                self.assertAlmostEqual(original_losses[name], restored_losses[name], places=6)
+            self.assertEqual(original.training_family_exposures, 126)
+            self.assertEqual(original.training_repeated_family_exposures, 42)
+            self.assertEqual(
+                restored.training_repeated_family_exposures,
+                original.training_repeated_family_exposures,
+            )
+
+    def test_r3_feasibility_gate_passes_and_fails_closed(self) -> None:
+        trainer = Stage2Trainer(self._r3_feasibility_config(), Path("."))
+        trainer.latest_evaluation = {
+            "profiles": {
+                "r3_eval_n3": {
+                    "controls": {
+                        "B-oracle": {
+                            "accuracy": 0.5,
+                            "cross_entropy": 1.5,
+                            "prediction_counts": [1] * 7,
+                        },
+                        "D-true": {
+                            "accuracy": 0.6,
+                            "cross_entropy": 1.4,
+                            "prediction_counts": [2] * 7,
+                        },
+                    }
+                },
+                "r3_eval_n4": {
+                    "controls": {
+                        "B-oracle": {
+                            "accuracy": 0.7,
+                            "cross_entropy": 1.0,
+                            "prediction_counts": [3] * 7,
+                        },
+                        "D-true": {
+                            "accuracy": 0.8,
+                            "cross_entropy": 0.9,
+                            "prediction_counts": [4] * 7,
+                        },
+                    }
+                },
+            }
+        }
+        gate = trainer._feasibility_gate()
+        self.assertTrue(gate["passed"])
+        trainer.latest_evaluation["profiles"]["r3_eval_n4"]["controls"]["D-true"]["cross_entropy"] = float("inf")
+        failed = trainer._feasibility_gate()
+        self.assertFalse(failed["passed"])
+        self.assertIn("r3_eval_n4:D-true:gate_failed", failed["failures"])
+        trainer.latest_evaluation["profiles"]["r3_eval_n4"]["controls"]["D-true"][
+            "prediction_counts"
+        ] = [1] * 8
+        malformed = trainer._feasibility_gate()
+        self.assertFalse(malformed["passed"])
+
+    def test_r3_thresholds_are_frozen(self) -> None:
+        with self.assertRaisesRegex(ValueError, "frozen"):
+            stage2_config_from_dict(
+                {
+                    "revision": "stage2-r3",
+                    "phase": "feasibility",
+                    "feasibility_min_accuracy": 0.49,
+                }
+            )
+
+    def test_r3_routing_train_step_fails_closed(self) -> None:
+        model = {
+            "vocab_size": 64,
+            "hidden_dim": 8,
+            "heads": 2,
+            "layers": 1,
+            "feedforward_dim": 16,
+            "dropout": 0.0,
+            "temperature": 1.0,
+        }
+        config = stage2_config_from_dict(
+            {
+                "revision": "stage2-r3",
+                "phase": "routing",
+                "optimizer_steps": 1,
+                "cpu_threads": 1,
+                "yield_ms": 0,
+                "model": model,
+                "a_param_model": {**model, "layers": 3},
+                "a_flop_model": {**model, "layers": 2},
+                "controls": [
+                    "A-Q-param",
+                    "A-Q-flop",
+                    "A-recur",
+                    "B-query",
+                    "B-noQ-router",
+                    "B-sham",
+                    "B-oracle",
+                    "F-stop",
+                    "F-left",
+                    "F-right",
+                    "F-add",
+                    "F-sub",
+                    "D-true",
+                    "D-sham",
+                ],
+            }
+        )
+        with TemporaryDirectory() as temporary:
+            trainer = Stage2Trainer(config, Path(temporary))
+            with self.assertRaisesRegex(RuntimeError, "ReadyForRouting"):
+                trainer.train_step()
 
 
 if __name__ == "__main__":

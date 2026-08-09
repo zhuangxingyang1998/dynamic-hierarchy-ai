@@ -8,7 +8,7 @@
 
 现在已经确认的是：在本项目的合成推理任务中，如果把正确结构提供给模型，它会获得巨大而稳定的优势。
 
-现在还没有确认的是：模型能不能自己发现这个结构。第一次 Stage 2 校准已经让模型尝试学习，但它退化成了立即停止，因此还需要修订实验。
+现在还没有确认的是：模型能不能自己发现这个结构。Stage 2 R2 的候选模型退化成了立即停止；R3 移除这个逃避路径并直接提供正确合并顺序后，模型仍只学会固定训练池，没有推广到未见表达式。因此问题目前卡在“基础运算能否泛化”，还没有进入自主结构发现的有效检验。
 
 ### 最初想法如何变成实验
 
@@ -152,7 +152,7 @@ D-true 获得的是外部提供的正确结构。因此，它接近 100% 不代�
 | --- | --- |
 | 正确层级结构是否有用？ | 已正式确认 |
 | 优势是否只是递归架构或更多计算造成的？ | D-sham 对照基本排除了这一解释 |
-| 模型能否自己发现合并边界？ | Stage 2 R2 已完成单种子校准，但模型退化为立即停止，尚未证明 |
+| 模型能否自己发现合并边界？ | 尚未证明；R3 可行性门失败，路由实验已按协议暂停 |
 | 连续相位能否帮助决定合并时机？ | 尚未验证 |
 | 自主结构能否外推到更长推理链和新树形？ | 未知 |
 | 能否改善真实语言模型？ | 未知 |
@@ -173,7 +173,24 @@ R2 同时运行普通 Transformer、参数匹配和运算量估算匹配基线�
 
 七分类随机水平是 14.29%。更关键的是，B-query 在三个评估中都对 100% 样本立即执行 `STOP`，轨迹与 F-stop 完全相同，正确树率为 0。A、A-recur、D-true 和 D-sham 也都仍接近随机水平。因此这不是“动态结构无效”的证据，而是一次明确的校准失败：任务学习前提尚未建立，候选路由又走进了最便宜的停止解。
 
-R3 不会直接增加种子或引入连续相位。它必须先设置学习可行性门，证明 A 或 D-true 至少能稳定学会当前任务；随后在这个必须归约到根的 benchmark 中移除候选 B 的 `STOP` 动作，只研究 query 是否能改变有效的 `MERGE` 顺序。可变且有用的停止需要另建任务。
+R3 因此没有直接增加种子或引入连续相位。它先设置学习可行性门，并在必须归约到根的 benchmark 中移除候选 B 的 `STOP` 动作，只检查普通模型、正确结构诊断和获得正确合并顺序的 B 是否能推广到未见表达式。
+
+### Stage 2 R3：结构链正确，但可行性门失败
+
+R3 使用两个固定训练池：长度 3 的 `-+` 和长度 4 的 `-+-`，各含 42 个 base family 和 84 个双查询行。三个模型训练 600 步，累计训练准确率分别为 A 92.79%、B-oracle 98.02%、D-true 98.15%。这说明优化器和模型能够拟合训练池。
+
+但在 84 个完全未见的 held-out family 上，结果接近七分类随机水平：
+
+| 评估 | 普通 A | B-oracle | D-true |
+| --- | ---: | ---: | ---: |
+| 长度 3，`-+` | 14.29% | 2.38% | 10.71% |
+| 长度 4，`-+-` | 11.90% | 14.29% | 14.29% |
+
+B-oracle 在两个评估中的正确树率、边 F1 和完整归约率都是 100%，`STOP` 次数为零。这排除了“又提前停止了”和“oracle 执行错树”这两种解释。训练与评估 family 重叠也为零。最符合证据的解释是：模型严重拟合了反复出现的 84 个训练 family，却没有学会可迁移的模七运算规则。
+
+预注册门槛要求 B-oracle 和 D-true 在两个评估上都达到至少 50% 准确率且交叉熵不超过 1.50；四个必需格子全部失败，正式 disposition 为 `feasibility_failed`。按照冻结协议，项目没有启动查询条件路由、额外种子或连续相位训练。
+
+下一轮应先扩大独立训练 family 覆盖，并保留验证与最终保留集。它需要在训练前冻结，证明至少 B-oracle 和 D-true 能对未见 family 泛化，之后才有资格询问模型能否自己找到合并顺序。
 
 ### 对当前主流推理的意义
 
@@ -181,7 +198,7 @@ R3 不会直接增加种子或引入连续相位。它必须先设置学习可�
 
 它的研究价值在于确认了一项必要前提：在一个受控任务中，正确的层级组织确实比平坦输入和错误结构更有价值。如果 Stage 1 没有通过，就没有充分理由继续投入自主结构学习；现在这条研究路线获得了进入下一实验阶段的依据。
 
-Stage 2 R2 的实现和负校准缩小了问题范围，但没有改变对主流推理的结论。只有后续模型稳定学会 query-dependent 合并，并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
+Stage 2 R2 和 R3 的负校准继续缩小了问题范围，但没有改变对主流推理的结论。R3 甚至还没有证明当前小任务的 held-out 泛化，因此不能把结果解释为动态层级成功或失败。只有后续模型先通过学习可行性门，再稳定学会 query-dependent 合并并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
 
 ### 继续阅读
 
@@ -192,14 +209,17 @@ Stage 2 R2 的实现和负校准缩小了问题范围，但没有改变对主流
 - Stage 2 R2 施工包：[stage2-construction-packet-r2.md](docs/stage2-construction-packet-r2.md)
 - Stage 2 R2 校准结果：[stage2-r2-calibration-result-20260809.md](docs/stage2-r2-calibration-result-20260809.md)
 - Stage 2 R2 公开证据：[evidence/stage2-r2-calibration/README.md](evidence/stage2-r2-calibration/README.md)
+- Stage 2 R3 施工包：[stage2-construction-packet-r3.md](docs/stage2-construction-packet-r3.md)
+- Stage 2 R3 可行性结果：[stage2-r3-feasibility-result-20260809.md](docs/stage2-r3-feasibility-result-20260809.md)
+- Stage 2 R3 公开证据：[evidence/stage2-r3-feasibility/README.md](evidence/stage2-r3-feasibility/README.md)
 
 最简洁而准确的当前结论是：
 
-> 我们已经证明“正确结构值得学习”；第一次自主结构校准则退化为立即停止，因此“模型能够自己学会结构”仍未证明。
+> 我们已经证明“正确结构值得学习”；但 R2 退化为立即停止，R3 又暴露出固定小训练池无法泛化，所以“模型能够自己学会结构”仍未开始得到有效验证。
 
 ## Technical Reference
 
-This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but its first calibration collapsed to immediate STOP and does not establish learned hierarchy.
+This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but collapsed to immediate STOP. Stage 2 R3 removed STOP and verified oracle full-reduction execution, but failed its held-out learnability gate after overfitting a small fixed family pool. Neither result establishes learned hierarchy.
 
 ## Status
 
@@ -215,6 +235,8 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - Canonical campaign v4 formally confirmed a fixed true-structure diagnostic advantage across eight independent training seeds; its exact aggregate unblocks starting Stage 2.
 - Stage 2 R2 implements paired precedence queries, hard adjacent merge routing, adaptive recurrence, all 13 mandatory controls, family-level isolation, checkpoint recovery, and complete common compute receipts on CPU and DirectML.
 - The first 120-step DirectML calibration completed but B-query collapsed to immediate STOP on every evaluation row; all task models remained near chance, so the result is calibration-inconclusive.
+- Stage 2 R3 preserves R2 compatibility, removes learned STOP for full-expression reduction, adds a source-only selected-path B-oracle and frozen feasibility gate, and completed its 600-step DirectML calibration.
+- R3's oracle structure execution was exact, but B-oracle and D-true failed every held-out feasibility gate after fitting the repeated training pools. Routing, extra seeds, and continuous phase remain blocked.
 
 **Candidate hypotheses, not results**
 
@@ -222,6 +244,7 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - Learned dynamic hierarchy, shared recursive merging, and phase-controlled decisions may improve extrapolation.
 - No experiment in this repository establishes learned dynamic hierarchy or autonomous boundary discovery.
 - Stage 2 R2 does not establish learned `MERGE/STOP`; its first calibration observed an all-STOP collapse.
+- Stage 2 R3 does not test learned routing; its `B-oracle` receives the correct source-only merge order, and the failed gate concerns held-out task generalization.
 
 **Backend boundary**
 

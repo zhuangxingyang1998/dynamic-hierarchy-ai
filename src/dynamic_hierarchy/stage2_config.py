@@ -1,4 +1,4 @@
-"""Typed configuration for the Stage 2 R2 precedence-query experiment."""
+"""Typed configuration for the Stage 2 R2/R3 precedence-query experiments."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 
-REQUIRED_STAGE2_CONTROLS = (
+R2_STAGE2_CONTROLS = (
     "A-Q-param",
     "A-Q-flop",
     "A-recur",
@@ -22,6 +22,38 @@ REQUIRED_STAGE2_CONTROLS = (
     "D-true",
     "D-sham",
 )
+R3_FEASIBILITY_CONTROLS = (
+    "A-Q-param",
+    "B-oracle",
+    "D-true",
+)
+R3_ROUTING_CONTROLS = (
+    "A-Q-param",
+    "A-Q-flop",
+    "A-recur",
+    "B-query",
+    "B-noQ-router",
+    "B-sham",
+    "B-oracle",
+    "F-stop",
+    "F-left",
+    "F-right",
+    "F-add",
+    "F-sub",
+    "D-true",
+    "D-sham",
+)
+R3_FEASIBILITY_GATE_CONTROLS = ("B-oracle", "D-true")
+R3_FROZEN_THRESHOLDS = {
+    "feasibility_min_accuracy": 0.50,
+    "feasibility_max_cross_entropy": 1.50,
+    "routing_required_iid_accuracy": 0.50,
+    "routing_min_advantage_over_blind_and_sham": 0.10,
+    "routing_min_advantage_over_best_fixed": 0.05,
+    "routing_min_exact_tree_rate": 0.60,
+    "routing_max_query_identical_trace_rate": 0.25,
+    "routing_min_ood_advantage": 0.05,
+}
 
 
 @dataclass(frozen=True)
@@ -50,6 +82,7 @@ class Stage2Profile:
             "in_distribution",
             "length_extrapolation",
             "topology_extrapolation",
+            "heldout_evaluation",
         }:
             raise ValueError(f"unsupported Stage 2 profile category: {self.category}")
         if self.shape_partition not in {"train", "heldout"}:
@@ -97,6 +130,20 @@ def _default_evaluation_profiles() -> tuple[Stage2Profile, ...]:
     )
 
 
+def _default_r3_train_profiles() -> tuple[Stage2Profile, ...]:
+    return (
+        Stage2Profile("r3_train_n3", 3, "-+", "train", "train"),
+        Stage2Profile("r3_train_n4", 4, "-+-", "train", "train"),
+    )
+
+
+def _default_r3_eval_profiles() -> tuple[Stage2Profile, ...]:
+    return (
+        Stage2Profile("r3_eval_n3", 3, "-+", "heldout_evaluation", "heldout"),
+        Stage2Profile("r3_eval_n4", 4, "-+-", "heldout_evaluation", "heldout"),
+    )
+
+
 def _default_a_param_model() -> Stage2ModelSpec:
     return Stage2ModelSpec(layers=3, feedforward_dim=128)
 
@@ -108,6 +155,7 @@ def _default_a_flop_model() -> Stage2ModelSpec:
 @dataclass(frozen=True)
 class Stage2Config:
     revision: str = "stage2-r2"
+    phase: str = "routing"
     run_kind: str = "smoke"
     seed: int = 821101
     device: str = "cpu"
@@ -127,7 +175,15 @@ class Stage2Config:
     ram_resume_gb: float = 6.0
     pressure_samples: int = 3
     recovery_samples: int = 2
-    controls: tuple[str, ...] = REQUIRED_STAGE2_CONTROLS
+    feasibility_min_accuracy: float = 0.50
+    feasibility_max_cross_entropy: float = 1.50
+    routing_required_iid_accuracy: float = 0.50
+    routing_min_advantage_over_blind_and_sham: float = 0.10
+    routing_min_advantage_over_best_fixed: float = 0.05
+    routing_min_exact_tree_rate: float = 0.60
+    routing_max_query_identical_trace_rate: float = 0.25
+    routing_min_ood_advantage: float = 0.05
+    controls: tuple[str, ...] = R2_STAGE2_CONTROLS
     train_profiles: tuple[Stage2Profile, ...] = field(default_factory=_default_train_profiles)
     evaluation_profiles: tuple[Stage2Profile, ...] = field(default_factory=_default_evaluation_profiles)
     model: Stage2ModelSpec = field(default_factory=Stage2ModelSpec)
@@ -135,15 +191,42 @@ class Stage2Config:
     a_flop_model: Stage2ModelSpec = field(default_factory=_default_a_flop_model)
 
     def to_dict(self) -> dict[str, object]:
-        return asdict(self)
+        payload = asdict(self)
+        if self.revision == "stage2-r2":
+            for key in (
+                "phase",
+                "feasibility_min_accuracy",
+                "feasibility_max_cross_entropy",
+                "routing_required_iid_accuracy",
+                "routing_min_advantage_over_blind_and_sham",
+                "routing_min_advantage_over_best_fixed",
+                "routing_min_exact_tree_rate",
+                "routing_max_query_identical_trace_rate",
+                "routing_min_ood_advantage",
+            ):
+                payload.pop(key, None)
+        return payload
+
+    def expected_controls(self) -> tuple[str, ...]:
+        if self.revision == "stage2-r2":
+            return R2_STAGE2_CONTROLS
+        if self.phase == "feasibility":
+            return R3_FEASIBILITY_CONTROLS
+        return R3_ROUTING_CONTROLS
 
     def validate(self) -> None:
-        if self.revision != "stage2-r2":
-            raise ValueError("the active Stage 2 implementation requires revision='stage2-r2'")
+        if self.revision not in {"stage2-r2", "stage2-r3"}:
+            raise ValueError("revision must be 'stage2-r2' or 'stage2-r3'")
+        if self.phase not in {"feasibility", "routing"}:
+            raise ValueError("phase must be 'feasibility' or 'routing'")
+        if self.revision == "stage2-r2" and self.phase != "routing":
+            raise ValueError("Stage 2 R2 supports only phase='routing'")
         if self.run_kind not in {"smoke", "calibration_only"}:
             raise ValueError("run_kind must be 'smoke' or 'calibration_only'")
         if self.device not in {"cpu", "directml"}:
             raise ValueError("device must be 'cpu' or 'directml'")
+        if type(self.deterministic) is not bool:
+            raise ValueError("deterministic must be a boolean")
         if self.device == "directml" and self.deterministic:
             raise ValueError("DirectML Stage 2 runs require deterministic=false")
         if self.cpu_threads <= 0 or self.optimizer_steps <= 0:
@@ -164,13 +247,45 @@ class Stage2Config:
             raise ValueError("RAM resource thresholds must satisfy 0 < pause < resume")
         if self.pressure_samples <= 0 or self.recovery_samples <= 0:
             raise ValueError("resource hysteresis sample counts must be positive")
+        if tuple(self.controls) != self.expected_controls():
+            raise ValueError(
+                f"{self.revision} {self.phase} requires the exact ordered control matrix "
+                f"{self.expected_controls()}"
+            )
         if self.run_kind == "calibration_only":
-            if self.seed != 821101 or self.optimizer_steps > 600:
-                raise ValueError("R2 calibration requires seed 821101 and at most 600 steps")
-            if self.evaluation_blocks < 10 or self.time_budget_minutes > 30.0:
-                raise ValueError("R2 calibration requires >=10 evaluation blocks and <=30 minutes")
-        if tuple(self.controls) != REQUIRED_STAGE2_CONTROLS:
-            raise ValueError("Stage 2 R2 requires the complete ordered control matrix")
+            if self.revision == "stage2-r2":
+                if self.seed != 821101 or self.optimizer_steps > 600:
+                    raise ValueError("R2 calibration requires seed 821101 and at most 600 steps")
+                if self.evaluation_blocks < 10 or self.time_budget_minutes > 30.0:
+                    raise ValueError("R2 calibration requires >=10 evaluation blocks and <=30 minutes")
+            else:
+                if self.phase != "feasibility":
+                    raise ValueError("only the R3 feasibility phase has a frozen calibration config")
+                if self.seed != 821301 or self.optimizer_steps > 600:
+                    raise ValueError("R3 feasibility calibration requires seed 821301 and at most 600 steps")
+                if self.evaluation_blocks != 1 or self.time_budget_minutes > 30.0:
+                    raise ValueError("R3 feasibility calibration requires one held-out block per profile and <=30 minutes")
+                if self.families_per_stratum != 42:
+                    raise ValueError("R3 feasibility calibration uses exactly one 42-family block per profile")
+        for threshold_name, value in (
+            ("feasibility_min_accuracy", self.feasibility_min_accuracy),
+            ("routing_required_iid_accuracy", self.routing_required_iid_accuracy),
+            ("routing_min_advantage_over_blind_and_sham", self.routing_min_advantage_over_blind_and_sham),
+            ("routing_min_advantage_over_best_fixed", self.routing_min_advantage_over_best_fixed),
+            ("routing_min_exact_tree_rate", self.routing_min_exact_tree_rate),
+            ("routing_max_query_identical_trace_rate", self.routing_max_query_identical_trace_rate),
+            ("routing_min_ood_advantage", self.routing_min_ood_advantage),
+        ):
+            if not 0.0 <= value <= 1.0:
+                raise ValueError(f"{threshold_name} must be between 0 and 1")
+        if self.feasibility_max_cross_entropy <= 0.0:
+            raise ValueError("feasibility_max_cross_entropy must be positive")
+        if self.revision == "stage2-r3":
+            for threshold_name, expected in R3_FROZEN_THRESHOLDS.items():
+                if getattr(self, threshold_name) != expected:
+                    raise ValueError(
+                        f"R3 threshold {threshold_name} is frozen at {expected}"
+                    )
         if not self.train_profiles or not self.evaluation_profiles:
             raise ValueError("Stage 2 requires training and evaluation profiles")
         for profile in (*self.train_profiles, *self.evaluation_profiles):
@@ -182,6 +297,29 @@ class Stage2Config:
         names = [profile.name for profile in (*self.train_profiles, *self.evaluation_profiles)]
         if len(names) != len(set(names)):
             raise ValueError("Stage 2 profile names must be unique")
+        if self.revision == "stage2-r3" and self.phase == "feasibility":
+            expected_train = (
+                ("r3_train_n3", 3, "-+", "train"),
+                ("r3_train_n4", 4, "-+-", "train"),
+            )
+            expected_eval = (
+                ("r3_eval_n3", 3, "-+", "heldout"),
+                ("r3_eval_n4", 4, "-+-", "heldout"),
+            )
+            observed_train = tuple(
+                (profile.name, profile.leaf_count, profile.operator_pattern, profile.shape_partition)
+                for profile in self.train_profiles
+            )
+            observed_eval = tuple(
+                (profile.name, profile.leaf_count, profile.operator_pattern, profile.shape_partition)
+                for profile in self.evaluation_profiles
+            )
+            if observed_train != expected_train:
+                raise ValueError("R3 feasibility train profiles are frozen to paired n3 '-+' and n4 '-+-' train pools")
+            if observed_eval != expected_eval:
+                raise ValueError("R3 feasibility evaluation profiles are frozen to paired n3 '-+' and n4 '-+-' heldout pools")
+            if self.families_per_stratum != 42:
+                raise ValueError("R3 feasibility requires exactly one 42-family block per profile")
         self.model.validate()
         self.a_param_model.validate()
         self.a_flop_model.validate()
@@ -199,24 +337,33 @@ def _profile(raw: Stage2Profile | dict[str, object]) -> Stage2Profile:
     )
 
 
+def _bool(raw: dict[str, object], key: str, default: bool) -> bool:
+    value = raw.get(key, default)
+    if type(value) is not bool:
+        raise ValueError(f"{key} must be a boolean")
+    return value
+
+
 def stage2_config_from_dict(raw: dict[str, object]) -> Stage2Config:
-    model_raw = dict(raw.get("model", {}))
-    model = Stage2ModelSpec(**model_raw)
+    revision = str(raw.get("revision", "stage2-r2"))
+    default_phase = "routing"
+    if revision == "stage2-r3":
+        default_phase = "feasibility"
+    model = Stage2ModelSpec(**dict(raw.get("model", {})))
     a_param_model = Stage2ModelSpec(**dict(raw.get("a_param_model", asdict(_default_a_param_model()))))
     a_flop_model = Stage2ModelSpec(**dict(raw.get("a_flop_model", asdict(_default_a_flop_model()))))
     config = Stage2Config(
-        revision=str(raw.get("revision", "stage2-r2")),
+        revision=revision,
+        phase=str(raw.get("phase", default_phase)),
         run_kind=str(raw.get("run_kind", "smoke")),
-        seed=int(raw.get("seed", 821101)),
+        seed=int(raw.get("seed", 821101 if revision == "stage2-r2" else 821301)),
         device=str(raw.get("device", "cpu")),
-        deterministic=bool(raw.get("deterministic", True)),
+        deterministic=_bool(raw, "deterministic", True),
         cpu_threads=int(raw.get("cpu_threads", 4)),
         optimizer_steps=int(raw.get("optimizer_steps", 2)),
         learning_rate=float(raw.get("learning_rate", 0.001)),
         families_per_stratum=int(raw.get("families_per_stratum", 42)),
-        max_generation_attempts_per_family=int(
-            raw.get("max_generation_attempts_per_family", 512)
-        ),
+        max_generation_attempts_per_family=int(raw.get("max_generation_attempts_per_family", 512)),
         checkpoint_steps=int(raw.get("checkpoint_steps", 1)),
         evaluation_blocks=int(raw.get("evaluation_blocks", 1)),
         time_budget_minutes=float(raw.get("time_budget_minutes", 5.0)),
@@ -227,13 +374,45 @@ def stage2_config_from_dict(raw: dict[str, object]) -> Stage2Config:
         ram_resume_gb=float(raw.get("ram_resume_gb", 6.0)),
         pressure_samples=int(raw.get("pressure_samples", 3)),
         recovery_samples=int(raw.get("recovery_samples", 2)),
-        controls=tuple(raw.get("controls", REQUIRED_STAGE2_CONTROLS)),
+        feasibility_min_accuracy=float(raw.get("feasibility_min_accuracy", 0.50)),
+        feasibility_max_cross_entropy=float(raw.get("feasibility_max_cross_entropy", 1.50)),
+        routing_required_iid_accuracy=float(raw.get("routing_required_iid_accuracy", 0.50)),
+        routing_min_advantage_over_blind_and_sham=float(
+            raw.get("routing_min_advantage_over_blind_and_sham", 0.10)
+        ),
+        routing_min_advantage_over_best_fixed=float(
+            raw.get("routing_min_advantage_over_best_fixed", 0.05)
+        ),
+        routing_min_exact_tree_rate=float(raw.get("routing_min_exact_tree_rate", 0.60)),
+        routing_max_query_identical_trace_rate=float(
+            raw.get("routing_max_query_identical_trace_rate", 0.25)
+        ),
+        routing_min_ood_advantage=float(raw.get("routing_min_ood_advantage", 0.05)),
+        controls=tuple(
+            raw.get(
+                "controls",
+                R2_STAGE2_CONTROLS
+                if revision == "stage2-r2"
+                else (R3_FEASIBILITY_CONTROLS if str(raw.get("phase", default_phase)) == "feasibility" else R3_ROUTING_CONTROLS),
+            )
+        ),
         train_profiles=tuple(
-            _profile(item) for item in raw.get("train_profiles", _default_train_profiles())
+            _profile(item)
+            for item in raw.get(
+                "train_profiles",
+                _default_train_profiles()
+                if revision == "stage2-r2"
+                else _default_r3_train_profiles(),
+            )
         ),
         evaluation_profiles=tuple(
             _profile(item)
-            for item in raw.get("evaluation_profiles", _default_evaluation_profiles())
+            for item in raw.get(
+                "evaluation_profiles",
+                _default_evaluation_profiles()
+                if revision == "stage2-r2"
+                else _default_r3_eval_profiles(),
+            )
         ),
         model=model,
         a_param_model=a_param_model,

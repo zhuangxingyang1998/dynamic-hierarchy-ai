@@ -1,0 +1,28 @@
+{
+  "revision": "stage2-r3",
+  "phase": "feasibility",
+  "run_kind": "calibration_only",
+  "seed": 821301,
+  "device": "directml",
+  "deterministic": false,
+  "cpu_threads": 4,
+  "optimizer_steps": 600,
+  "learning_rate": 0.001,
+  "families_per_stratum": 42,
+  "max_generation_attempts_per_family": 512,
+  "checkpoint_steps": 25,
+  "evaluation_blocks": 1,
+  "time_budget_minutes": 30,
+  "yield_ms": 2,
+  "cpu_pause_percent": 90,
+  "cpu_resume_percent": 75,
+  "ram_pause_gb": 4,
+  "ram_resume_gb": 6,
+  "pressure_samples": 3,
+  "recovery_samples": 2,
+  "controls": [
+    "A-Q-param",
+    "B-oracle",
+    "D-true"
+  ]
+}

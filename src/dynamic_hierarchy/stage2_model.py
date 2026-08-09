@@ -1,4 +1,4 @@
-"""Hard-path learned and fixed merge models for Stage 2 R2."""
+"""Hard-path learned and forced merge models for Stage 2 R2/R3."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import torch
 from torch import nn
 
-from .data import ADD, SUB
+from .data import ADD, SUB, MergeSourceReference, StructureOnlyBatch, StructureSample
 from .stage2_config import Stage2ModelSpec
 from .stage2_data import Stage2OrdinaryBatch
 
@@ -85,14 +85,16 @@ def straight_through_select(
 class Stage2MergeClassifier(nn.Module):
     """Adjacent merge classifier whose answer path contains hard-selected states only."""
 
-    LEGAL_POLICIES = {"learned", "stop", "left", "right", "add", "sub"}
+    LEGAL_POLICIES = {"learned", "oracle", "stop", "left", "right", "add", "sub"}
     LEGAL_QUERY_MODES = {"query", "blind", "sham"}
+    LEGAL_FORCED_COMPUTE_MODES = {"selected_only", "candidate_matched"}
 
-    def __init__(self, spec: Stage2ModelSpec) -> None:
+    def __init__(self, spec: Stage2ModelSpec, *, allow_stop: bool = True) -> None:
         super().__init__()
         spec.validate()
         hidden = spec.hidden_dim
         self.spec = spec
+        self.allow_stop = allow_stop
         self.token_embedding = nn.Embedding(spec.vocab_size, hidden, padding_idx=0)
         self.position_projection = nn.Sequential(
             nn.Linear(3, hidden), nn.Tanh(), nn.Linear(hidden, hidden)
@@ -110,11 +112,12 @@ class Stage2MergeClassifier(nn.Module):
             nn.GELU(),
             nn.Linear(spec.feedforward_dim, 1),
         )
-        self.stop_router = nn.Sequential(
-            nn.Linear(hidden * 2 + 1, spec.feedforward_dim),
-            nn.GELU(),
-            nn.Linear(spec.feedforward_dim, 1),
-        )
+        if allow_stop:
+            self.stop_router = nn.Sequential(
+                nn.Linear(hidden * 2 + 1, spec.feedforward_dim),
+                nn.GELU(),
+                nn.Linear(spec.feedforward_dim, 1),
+            )
         self.terminal_attention = nn.Linear(hidden * 2, 1)
         self.classifier = nn.Sequential(
             nn.Linear(hidden * 2, spec.feedforward_dim),
@@ -158,6 +161,36 @@ class Stage2MergeClassifier(nn.Module):
             0,
         )
 
+    @staticmethod
+    def _oracle_merge_index(
+        structure: StructureSample,
+        active: list[_RuntimeNode],
+        active_operator_positions: list[int],
+    ) -> int:
+        active_ids = {node.node_id for node in active}
+        for node in structure.nodes:
+            if not isinstance(node, MergeSourceReference):
+                continue
+            if node.left not in active_ids or node.right not in active_ids:
+                continue
+            for pair_index in range(len(active_operator_positions)):
+                left_node = active[pair_index]
+                right_node = active[pair_index + 1]
+                if left_node.node_id == node.left and right_node.node_id == node.right:
+                    if active_operator_positions[pair_index] != node.operator_source_index:
+                        raise RuntimeError("oracle operator source index does not match active adjacency")
+                    return pair_index
+        raise RuntimeError("oracle structure has no legal next adjacent merge")
+
+    def _compose_selected(
+        self,
+        left: torch.Tensor,
+        right: torch.Tensor,
+        operator: torch.Tensor,
+    ) -> torch.Tensor:
+        composed = self.composer(torch.cat((left, right, operator), dim=-1).unsqueeze(0))
+        return composed.squeeze(0)
+
     def forward(
         self,
         batch: Stage2OrdinaryBatch,
@@ -165,6 +198,8 @@ class Stage2MergeClassifier(nn.Module):
         policy: str = "learned",
         router_query_mode: str = "query",
         merge_budget: int | None = None,
+        oracle_structure: StructureOnlyBatch | None = None,
+        forced_compute_mode: str = "candidate_matched",
     ) -> Stage2MergeOutput:
         if not isinstance(batch, Stage2OrdinaryBatch):
             raise TypeError("Stage 2 merge models require Stage2OrdinaryBatch")
@@ -172,8 +207,21 @@ class Stage2MergeClassifier(nn.Module):
             raise ValueError(f"unsupported Stage 2 merge policy: {policy}")
         if router_query_mode not in self.LEGAL_QUERY_MODES:
             raise ValueError(f"unsupported router query mode: {router_query_mode}")
+        if forced_compute_mode not in self.LEGAL_FORCED_COMPUTE_MODES:
+            raise ValueError(f"unsupported forced compute mode: {forced_compute_mode}")
         if batch.token_ids.shape[0] != batch.query_ids.shape[0]:
             raise ValueError("query count must match Stage 2 batch rows")
+        if oracle_structure is not None and not isinstance(
+            oracle_structure, StructureOnlyBatch
+        ):
+            raise TypeError("oracle policy accepts only StructureOnlyBatch")
+        if policy == "oracle":
+            if oracle_structure is None:
+                raise ValueError("oracle policy requires StructureOnlyBatch")
+            if len(oracle_structure.samples) != batch.token_ids.shape[0]:
+                raise ValueError("oracle structure row count must match the ordinary batch")
+        elif oracle_structure is not None:
+            raise ValueError("oracle structure is legal only with policy='oracle'")
         token_states = self.token_embedding(batch.token_ids) + self.position_projection(
             batch.position_features
         )
@@ -204,6 +252,7 @@ class Stage2MergeClassifier(nn.Module):
                 int(batch.token_ids[row_index, source_index].detach().cpu().item())
                 for source_index in active_operator_positions
             ]
+            row_oracle = None if oracle_structure is None else oracle_structure.samples[row_index]
             next_node_id = len(active)
             row_trace: list[Stage2TraceStep] = []
             stopped_early = False
@@ -214,38 +263,48 @@ class Stage2MergeClassifier(nn.Module):
             for step in range(row_budget):
                 if len(active) == 1:
                     break
-                step_fraction = token_states.new_tensor([step / max(1, max_merges)])
-                pair_inputs: list[torch.Tensor] = []
-                composition_inputs: list[torch.Tensor] = []
-                for pair_index, operator_source_index in enumerate(active_operator_positions):
-                    left = active[pair_index].state
-                    right = active[pair_index + 1].state
-                    operator = token_states[row_index, operator_source_index]
-                    composition_inputs.append(torch.cat((left, right, operator), dim=-1))
-                    pair_inputs.append(
-                        torch.cat((left, right, operator, router_query, step_fraction), dim=-1)
-                    )
-                compositions = self.composer(torch.stack(composition_inputs))
-                pair_logits = self.router(torch.stack(pair_inputs)).squeeze(-1)
-                active_summary = torch.stack([node.state for node in active]).mean(dim=0)
-                stop_logit = self.stop_router(
-                    torch.cat((active_summary, router_query, step_fraction), dim=-1)
-                ).reshape(1)
-                action_logits = torch.cat((pair_logits, stop_logit), dim=0)
-                probabilities = torch.softmax(
-                    action_logits / self.spec.temperature,
-                    dim=0,
-                )
-                candidate_scores += action_logits.shape[0]
-                candidate_compositions += compositions.shape[0]
-                stop_scores += 1
-                recurrent_steps += 1
-                hard_index = (
-                    int(action_logits.detach().argmax().cpu().item())
-                    if policy == "learned"
-                    else self._fixed_action(policy, active_operator_tokens)
-                )
-                if hard_index == len(active_operator_positions):
+                if policy == "stop":
+                    if self.allow_stop and forced_compute_mode == "candidate_matched":
+                        step_fraction = token_states.new_tensor(
+                            [step / max(1, max_merges)]
+                        )
+                        pair_inputs: list[torch.Tensor] = []
+                        composition_inputs: list[torch.Tensor] = []
+                        for pair_index, operator_source_index in enumerate(
+                            active_operator_positions
+                        ):
+                            left = active[pair_index].state
+                            right = active[pair_index + 1].state
+                            operator = token_states[row_index, operator_source_index]
+                            composition_inputs.append(
+                                torch.cat((left, right, operator), dim=-1)
+                            )
+                            pair_inputs.append(
+                                torch.cat(
+                                    (
+                                        left,
+                                        right,
+                                        operator,
+                                        router_query,
+                                        step_fraction,
+                                    ),
+                                    dim=-1,
+                                )
+                            )
+                        compositions = self.composer(torch.stack(composition_inputs))
+                        pair_logits = self.router(torch.stack(pair_inputs)).squeeze(-1)
+                        active_summary = torch.stack(
+                            [node.state for node in active]
+                        ).mean(dim=0)
+                        self.stop_router(
+                            torch.cat(
+                                (active_summary, router_query, step_fraction), dim=-1
+                            )
+                        )
+                        candidate_scores += int(pair_logits.shape[0]) + 1
+                        candidate_compositions += int(compositions.shape[0])
+                        stop_scores += 1
+                        recurrent_steps += 1
                     row_trace.append(
                         Stage2TraceStep(
                             step=step,
@@ -262,7 +321,137 @@ class Stage2MergeClassifier(nn.Module):
                     )
                     stopped_early = len(active) > 1
                     break
-                selected = straight_through_select(compositions, probabilities[:-1], hard_index)
+                step_fraction = token_states.new_tensor([step / max(1, max_merges)])
+                if policy == "learned":
+                    pair_inputs: list[torch.Tensor] = []
+                    composition_inputs: list[torch.Tensor] = []
+                    for pair_index, operator_source_index in enumerate(active_operator_positions):
+                        left = active[pair_index].state
+                        right = active[pair_index + 1].state
+                        operator = token_states[row_index, operator_source_index]
+                        composition_inputs.append(torch.cat((left, right, operator), dim=-1))
+                        pair_inputs.append(
+                            torch.cat((left, right, operator, router_query, step_fraction), dim=-1)
+                        )
+                    compositions = self.composer(torch.stack(composition_inputs))
+                    pair_logits = self.router(torch.stack(pair_inputs)).squeeze(-1)
+                    candidate_scores += int(pair_logits.shape[0])
+                    candidate_compositions += int(compositions.shape[0])
+                    recurrent_steps += 1
+                    if self.allow_stop:
+                        active_summary = torch.stack([node.state for node in active]).mean(dim=0)
+                        stop_logit = self.stop_router(
+                            torch.cat((active_summary, router_query, step_fraction), dim=-1)
+                        ).reshape(1)
+                        action_logits = torch.cat((pair_logits, stop_logit), dim=0)
+                        probabilities = torch.softmax(action_logits / self.spec.temperature, dim=0)
+                        candidate_scores += 1
+                        stop_scores += 1
+                        hard_index = int(action_logits.detach().argmax().cpu().item())
+                        if hard_index == len(active_operator_positions):
+                            row_trace.append(
+                                Stage2TraceStep(
+                                    step=step,
+                                    action="STOP",
+                                    merge_index=None,
+                                    left_node_id=None,
+                                    right_node_id=None,
+                                    parent_node_id=None,
+                                    source_start=None,
+                                    source_end=None,
+                                    operator_source_index=None,
+                                    legal_merge_count=len(active_operator_positions),
+                                )
+                            )
+                            stopped_early = len(active) > 1
+                            break
+                        selected = straight_through_select(compositions, probabilities[:-1], hard_index)
+                    else:
+                        probabilities = torch.softmax(pair_logits / self.spec.temperature, dim=0)
+                        hard_index = int(pair_logits.detach().argmax().cpu().item())
+                        selected = straight_through_select(compositions, probabilities, hard_index)
+                else:
+                    if policy == "oracle":
+                        if row_oracle is None:
+                            raise RuntimeError("oracle policy lost its structure row")
+                        hard_index = self._oracle_merge_index(
+                            row_oracle,
+                            active,
+                            active_operator_positions,
+                        )
+                    else:
+                        hard_index = self._fixed_action(policy, active_operator_tokens)
+                        if hard_index == len(active_operator_positions):
+                            row_trace.append(
+                                Stage2TraceStep(
+                                    step=step,
+                                    action="STOP",
+                                    merge_index=None,
+                                    left_node_id=None,
+                                    right_node_id=None,
+                                    parent_node_id=None,
+                                    source_start=None,
+                                    source_end=None,
+                                    operator_source_index=None,
+                                    legal_merge_count=len(active_operator_positions),
+                                )
+                            )
+                            stopped_early = len(active) > 1
+                            break
+                    left = active[hard_index].state
+                    right = active[hard_index + 1].state
+                    operator_source_index = active_operator_positions[hard_index]
+                    operator = token_states[row_index, operator_source_index]
+                    if forced_compute_mode == "candidate_matched":
+                        pair_inputs: list[torch.Tensor] = []
+                        composition_inputs: list[torch.Tensor] = []
+                        for pair_index, candidate_operator_source_index in enumerate(
+                            active_operator_positions
+                        ):
+                            candidate_left = active[pair_index].state
+                            candidate_right = active[pair_index + 1].state
+                            candidate_operator = token_states[
+                                row_index, candidate_operator_source_index
+                            ]
+                            composition_inputs.append(
+                                torch.cat(
+                                    (
+                                        candidate_left,
+                                        candidate_right,
+                                        candidate_operator,
+                                    ),
+                                    dim=-1,
+                                )
+                            )
+                            pair_inputs.append(
+                                torch.cat(
+                                    (
+                                        candidate_left,
+                                        candidate_right,
+                                        candidate_operator,
+                                        router_query,
+                                        step_fraction,
+                                    ),
+                                    dim=-1,
+                                )
+                            )
+                        compositions = self.composer(torch.stack(composition_inputs))
+                        candidate_scores += int(
+                            self.router(torch.stack(pair_inputs)).shape[0]
+                        )
+                        candidate_compositions += int(compositions.shape[0])
+                        if self.allow_stop:
+                            active_summary = torch.stack([node.state for node in active]).mean(dim=0)
+                            self.stop_router(
+                                torch.cat((active_summary, router_query, step_fraction), dim=-1)
+                            )
+                            candidate_scores += 1
+                            stop_scores += 1
+                        selected = compositions[hard_index]
+                    else:
+                        selected = self._compose_selected(left, right, operator)
+                        candidate_compositions += 1
+                    recurrent_steps += 1
                 left_node = active[hard_index]
                 right_node = active[hard_index + 1]
                 operator_source_index = active_operator_positions.pop(hard_index)

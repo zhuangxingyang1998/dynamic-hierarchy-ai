@@ -1,10 +1,11 @@
-"""Paired Stage 2 R2 training, interventions, evaluation, and recovery."""
+"""Paired Stage 2 R2/R3 training, interventions, evaluation, and recovery."""
 
 from __future__ import annotations
 
 import copy
 import hashlib
 import json
+import math
 import os
 import time
 from dataclasses import dataclass
@@ -20,7 +21,12 @@ from .data import LeafSourceReference, MergeSourceReference, StructureSample
 from .model import SmallTransformerBaseline, TrueStructureDiagnosticD
 from .optim import DirectMLCompatibleAdamWCore
 from .stage1_data import sham_structure
-from .stage2_config import Stage2Config, Stage2ModelSpec
+from .stage2_config import (
+    R2_STAGE2_CONTROLS,
+    R3_FEASIBILITY_GATE_CONTROLS,
+    Stage2Config,
+    Stage2ModelSpec,
+)
 from .stage2_data import Stage2GeneratedBatch, Stage2OrdinaryBatch, Stage2PrecedenceFamilyGenerator
 from .stage2_model import (
     Stage2MergeClassifier,
@@ -31,13 +37,29 @@ from .stage2_model import (
 )
 
 
-TRAINABLE_CONTROLS = (
+R2_TRAINABLE_CONTROLS = (
     "A-Q-param",
     "A-Q-flop",
     "A-recur",
     "B-query",
     "B-noQ-router",
     "B-sham",
+    "D-true",
+    "D-sham",
+)
+R3_FEASIBILITY_TRAINABLE_CONTROLS = (
+    "A-Q-param",
+    "B-oracle",
+    "D-true",
+)
+R3_ROUTING_TRAINABLE_CONTROLS = (
+    "A-Q-param",
+    "A-Q-flop",
+    "A-recur",
+    "B-query",
+    "B-noQ-router",
+    "B-sham",
+    "B-oracle",
     "D-true",
     "D-sham",
 )
@@ -71,6 +93,10 @@ def _cpu_tree(value: Any) -> Any:
 
 def _hash_set_digest(values: set[str]) -> str:
     return hashlib.sha256("\n".join(sorted(values)).encode("ascii")).hexdigest()
+
+
+def _packet_id(config: Stage2Config) -> str:
+    return "DH-S2-R3" if config.revision == "stage2-r3" else "DH-S2-R2"
 
 
 def _model_config(spec: Stage2ModelSpec) -> ModelConfig:
@@ -113,7 +139,12 @@ def estimate_transformer_forward_operations(
     return embedding_and_position + spec.layers * layer + hidden * 7
 
 
-def estimate_merge_forward_operations(spec: Stage2ModelSpec, leaf_count: int) -> int:
+def estimate_merge_forward_operations(
+    spec: Stage2ModelSpec,
+    leaf_count: int,
+    *,
+    include_stop: bool,
+) -> int:
     """Count every candidate composer/router site on a full hard reduction."""
 
     hidden = spec.hidden_dim
@@ -124,8 +155,10 @@ def estimate_merge_forward_operations(spec: Stage2ModelSpec, leaf_count: int) ->
         candidates = active_nodes - 1
         composer = 4 * hidden * feedforward
         router = (4 * hidden + 1) * feedforward + feedforward
-        stop = (2 * hidden + 1) * feedforward + feedforward
-        operations += candidates * (composer + router) + stop
+        operations += candidates * (composer + router)
+        if include_stop:
+            stop = (2 * hidden + 1) * feedforward + feedforward
+            operations += stop
     operations += leaf_count * 2 * hidden
     operations += 2 * hidden * feedforward + feedforward * 7
     return operations
@@ -136,6 +169,7 @@ class _ForwardReceipt:
     logits: torch.Tensor
     merge: Stage2MergeOutput | None = None
     recurrent: Stage2RecurrentOutput | None = None
+    selection_path: str | None = None
 
 
 def _oracle_edges(structure: StructureSample) -> set[tuple[int, int, int]]:
@@ -167,55 +201,42 @@ def _trace_edges(trace: Stage2Trace) -> set[tuple[int, int, int]]:
 
 
 class Stage2Trainer:
-    """Train the complete R2 matrix on paired precedence-query families."""
+    """Train the selected Stage 2 control matrix on paired precedence-query families."""
 
     def __init__(self, config: Stage2Config, run_dir: Path) -> None:
         config.validate()
         self.config = config
         self.run_dir = run_dir
+        self.packet_id = _packet_id(config)
         self.backend: Backend = resolve_backend(
             config.device,
             config.cpu_threads,
             config.deterministic,
         )
         torch.manual_seed(config.seed)
-
-        b_query = Stage2MergeClassifier(config.model)
-        d_true = TrueStructureDiagnosticD(
-            config.model.vocab_size,
-            _model_config(config.model),
-            output_classes=7,
-        )
-        self.models: dict[str, nn.Module] = {
-            "A-Q-param": SmallTransformerBaseline(
-                config.a_param_model.vocab_size,
-                _model_config(config.a_param_model),
-                output_classes=7,
-            ),
-            "A-Q-flop": SmallTransformerBaseline(
-                config.a_flop_model.vocab_size,
-                _model_config(config.a_flop_model),
-                output_classes=7,
-            ),
-            "A-recur": Stage2RecurrentFlatBaseline(config.model),
-            "B-query": b_query,
-            "B-noQ-router": copy.deepcopy(b_query),
-            "B-sham": copy.deepcopy(b_query),
-            "D-true": d_true,
-            "D-sham": copy.deepcopy(d_true),
-        }
+        self.trainable_controls = self._trainable_controls()
         self.models = {
-            name: model.to(self.backend.device) for name, model in self.models.items()
+            name: model.to(self.backend.device)
+            for name, model in self._build_models().items()
         }
         self.optimizers = {
             name: DirectMLCompatibleAdamWCore(model.parameters(), lr=config.learning_rate)
             for name, model in self.models.items()
+            if name in self.trainable_controls
         }
         self.loss_fn = nn.CrossEntropyLoss()
         self.generator = Stage2PrecedenceFamilyGenerator(config.seed + 1)
+        self.fixed_train_pools = self._build_fixed_train_pools()
+        self.fixed_train_pool_evidence = self._fixed_pool_evidence(self.fixed_train_pools)
         self.global_step = 0
         self.training_family_hashes: set[str] = set()
         self.training_duplicate_families = 0
+        self.training_family_exposures = 0
+        self.training_repeated_family_exposures = 0
+        self.exposed_training_family_hashes: set[str] = set()
+        if self.fixed_train_pools:
+            for generated in self.fixed_train_pools.values():
+                self.training_family_hashes.update(generated.generation.family_hashes)
         self.evaluation_family_hashes: set[str] = set()
         self.latest_evaluation: dict[str, object] = {}
         self.elapsed_before_resume = 0.0
@@ -225,10 +246,7 @@ class Stage2Trainer:
         self.parameter_counts = {
             name: _parameter_count(model) for name, model in self.models.items()
         }
-        if len({self.parameter_counts[name] for name in ("B-query", "B-noQ-router", "B-sham")}) != 1:
-            raise RuntimeError("B-query, B-noQ-router, and B-sham must be parameter matched")
-        if self.parameter_counts["D-true"] != self.parameter_counts["D-sham"]:
-            raise RuntimeError("D-true and D-sham must be parameter matched")
+        self._validate_parameter_matching()
         self.cumulative = {
             name: {
                 "optimizer_updates": 0,
@@ -242,20 +260,126 @@ class Stage2Trainer:
                 "selected_compositions": 0,
                 "recurrent_steps": 0,
             }
-            for name in TRAINABLE_CONTROLS
+            for name in self.trainable_controls
         }
         self._initial_router = {
             name: torch.cat(
                 [parameter.detach().cpu().flatten() for parameter in self.models[name].router.parameters()]
             )
-            for name in ("B-query", "B-noQ-router", "B-sham")
+            for name in self.models
+            if name.startswith("B-") and hasattr(self.models[name], "router")
         }
+
+    def _trainable_controls(self) -> tuple[str, ...]:
+        if self.config.revision == "stage2-r2":
+            return R2_TRAINABLE_CONTROLS
+        if self.config.phase == "feasibility":
+            return R3_FEASIBILITY_TRAINABLE_CONTROLS
+        return R3_ROUTING_TRAINABLE_CONTROLS
+
+    def _build_models(self) -> dict[str, nn.Module]:
+        def build_b(*, allow_stop: bool) -> Stage2MergeClassifier:
+            return Stage2MergeClassifier(self.config.model, allow_stop=allow_stop)
+
+        def build_d() -> TrueStructureDiagnosticD:
+            return TrueStructureDiagnosticD(
+                self.config.model.vocab_size,
+                _model_config(self.config.model),
+                output_classes=7,
+            )
+
+        models: dict[str, nn.Module] = {}
+        if "A-Q-param" in self.trainable_controls or "A-Q-param" in self.config.controls:
+            models["A-Q-param"] = SmallTransformerBaseline(
+                self.config.a_param_model.vocab_size,
+                _model_config(self.config.a_param_model),
+                output_classes=7,
+            )
+        if "A-Q-flop" in self.trainable_controls or "A-Q-flop" in self.config.controls:
+            models["A-Q-flop"] = SmallTransformerBaseline(
+                self.config.a_flop_model.vocab_size,
+                _model_config(self.config.a_flop_model),
+                output_classes=7,
+            )
+        if "A-recur" in self.trainable_controls or "A-recur" in self.config.controls:
+            models["A-recur"] = Stage2RecurrentFlatBaseline(self.config.model)
+        if self.config.revision == "stage2-r2":
+            b_query = build_b(allow_stop=True)
+            models["B-query"] = b_query
+            models["B-noQ-router"] = copy.deepcopy(b_query)
+            models["B-sham"] = copy.deepcopy(b_query)
+            models["D-true"] = build_d()
+            models["D-sham"] = copy.deepcopy(models["D-true"])
+            return models
+        if self.config.phase == "feasibility":
+            models["B-oracle"] = build_b(allow_stop=False)
+            models["D-true"] = build_d()
+            return models
+        b_query = build_b(allow_stop=False)
+        models["B-query"] = b_query
+        models["B-noQ-router"] = copy.deepcopy(b_query)
+        models["B-sham"] = copy.deepcopy(b_query)
+        models["B-oracle"] = copy.deepcopy(b_query)
+        models["D-true"] = build_d()
+        models["D-sham"] = copy.deepcopy(models["D-true"])
+        return models
+
+    def _validate_parameter_matching(self) -> None:
+        b_controls = [
+            name
+            for name in ("B-query", "B-noQ-router", "B-sham", "B-oracle")
+            if name in self.parameter_counts
+        ]
+        if b_controls:
+            counts = {self.parameter_counts[name] for name in b_controls}
+            if len(counts) != 1:
+                raise RuntimeError(f"B controls must be parameter matched: {b_controls}")
+        if "D-true" in self.parameter_counts and "D-sham" in self.parameter_counts:
+            if self.parameter_counts["D-true"] != self.parameter_counts["D-sham"]:
+                raise RuntimeError("D-true and D-sham must be parameter matched")
+
+    def _build_fixed_train_pools(self) -> dict[str, Stage2GeneratedBatch]:
+        if not (self.config.revision == "stage2-r3" and self.config.phase == "feasibility"):
+            return {}
+        pools: dict[str, Stage2GeneratedBatch] = {}
+        for profile_index, profile in enumerate(self.config.train_profiles):
+            generator = Stage2PrecedenceFamilyGenerator(self.config.seed + 101 + profile_index)
+            pools[profile.name] = generator.balanced_block(
+                profile,
+                blocks=self.config.families_per_stratum // 42,
+                max_attempts_per_family=self.config.max_generation_attempts_per_family,
+            )
+        return pools
+
+    def _fixed_pool_evidence(
+        self,
+        pools: dict[str, Stage2GeneratedBatch],
+    ) -> dict[str, object]:
+        evidence: dict[str, object] = {}
+        for profile_name, generated in pools.items():
+            family_hashes = tuple(generated.generation.family_hashes)
+            query_hashes = tuple(generated.ordinary.query_row_hashes)
+            evidence[profile_name] = {
+                "accepted_families": generated.generation.accepted_families,
+                "query_rows": int(generated.ordinary.labels.shape[0]),
+                "family_hashes": family_hashes,
+                "family_hash_digest": _hash_set_digest(set(family_hashes)),
+                "query_row_hashes": query_hashes,
+                "query_row_hash_digest": _hash_set_digest(set(query_hashes)),
+                "label_pair_counts": generated.generation.label_pair_counts,
+            }
+        return evidence
 
     def elapsed_seconds(self) -> float:
         return self.elapsed_before_resume + time.monotonic() - self.process_started
 
     def time_budget_exhausted(self) -> bool:
         return self.elapsed_seconds() >= self.config.time_budget_minutes * 60.0
+
+    def _oracle_forced_compute_mode(self) -> str:
+        if self.config.revision == "stage2-r3" and self.config.phase == "feasibility":
+            return "selected_only"
+        return "candidate_matched"
 
     def _forward(
         self,
@@ -266,8 +390,13 @@ class Stage2Trainer:
         fixed_policy: str | None = None,
     ) -> _ForwardReceipt:
         if fixed_policy is not None:
-            output = self.models["B-query"](batch, policy=fixed_policy)
-            return _ForwardReceipt(output.logits, output)
+            output = self.models["B-query"](
+                batch,
+                policy=fixed_policy,
+                forced_compute_mode="candidate_matched",
+            )
+            selection_path = "forced_zero_merge" if fixed_policy == "stop" else "forced_candidate_matched"
+            return _ForwardReceipt(output.logits, output, selection_path=selection_path)
         model = self.models[name]
         if name.startswith("A-Q-"):
             return _ForwardReceipt(
@@ -276,6 +405,19 @@ class Stage2Trainer:
         if name == "A-recur":
             output = model(batch)
             return _ForwardReceipt(output.logits, recurrent=output)
+        if name == "B-oracle":
+            forced_compute_mode = self._oracle_forced_compute_mode()
+            output = model(
+                batch,
+                policy="oracle",
+                oracle_structure=generated.diagnostic_structure,
+                forced_compute_mode=forced_compute_mode,
+            )
+            return _ForwardReceipt(
+                output.logits,
+                merge=output,
+                selection_path=f"forced_{forced_compute_mode}",
+            )
         if name.startswith("B-"):
             mode = {
                 "B-query": "query",
@@ -283,7 +425,7 @@ class Stage2Trainer:
                 "B-sham": "sham",
             }[name]
             output = model(batch, policy="learned", router_query_mode=mode)
-            return _ForwardReceipt(output.logits, output)
+            return _ForwardReceipt(output.logits, output, selection_path="straight_through_learned")
         structure = generated.diagnostic_structure
         if name == "D-sham":
             structure = sham_structure(structure, generated.ordinary.token_ids)
@@ -295,22 +437,37 @@ class Stage2Trainer:
         )
         return _ForwardReceipt(output.logits)
 
+    def _training_batch_for_step(self) -> Stage2GeneratedBatch:
+        profile = self.config.train_profiles[self.global_step % len(self.config.train_profiles)]
+        if self.fixed_train_pools:
+            generated = self.fixed_train_pools[profile.name]
+        else:
+            generated = self.generator.balanced_block(
+                profile,
+                blocks=self.config.families_per_stratum // 42,
+                max_attempts_per_family=self.config.max_generation_attempts_per_family,
+            )
+            for family_hash in generated.generation.family_hashes:
+                if family_hash in self.training_family_hashes:
+                    self.training_duplicate_families += 1
+                self.training_family_hashes.add(family_hash)
+        for family_hash in generated.generation.family_hashes:
+            self.training_family_exposures += 1
+            if family_hash in self.exposed_training_family_hashes:
+                self.training_repeated_family_exposures += 1
+            else:
+                self.exposed_training_family_hashes.add(family_hash)
+        return generated
+
     def train_step(self) -> dict[str, float]:
         if self.global_step >= self.config.optimizer_steps:
             raise RuntimeError("Stage 2 target optimizer steps are already complete")
-        profile = self.config.train_profiles[self.global_step % len(self.config.train_profiles)]
-        generated = self.generator.balanced_block(
-            profile,
-            blocks=self.config.families_per_stratum // 42,
-            max_attempts_per_family=self.config.max_generation_attempts_per_family,
-        )
-        for family_hash in generated.generation.family_hashes:
-            if family_hash in self.training_family_hashes:
-                self.training_duplicate_families += 1
-            self.training_family_hashes.add(family_hash)
+        if self.config.revision == "stage2-r3" and self.config.phase == "routing":
+            raise RuntimeError("Stage 2 R3 routing is frozen but not ReadyForRouting in this slice")
+        generated = self._training_batch_for_step()
         batch = generated.ordinary.to(self.backend.device)
         losses: dict[str, float] = {}
-        for name in TRAINABLE_CONTROLS:
+        for name in self.trainable_controls:
             model = self.models[name]
             optimizer = self.optimizers[name]
             model.train()
@@ -390,7 +547,7 @@ class Stage2Trainer:
             immediate_stop += bool(trace.stopped_early and not predicted)
             early_stop += bool(trace.stopped_early)
             full_reduction += bool(trace.reached_root)
-            merge_steps = [step for step in trace.steps if step.action == "merge"]
+            merge_steps = [step for step in trace.steps if step.action == "MERGE"]
             always_left += bool(merge_steps) and all(step.merge_index == 0 for step in merge_steps)
             always_right += bool(merge_steps) and all(
                 step.merge_index == step.legal_merge_count - 1 for step in merge_steps
@@ -421,6 +578,21 @@ class Stage2Trainer:
             "always_left_rate": always_left / count,
             "always_right_rate": always_right / count,
         }
+
+    def _merge_operation_estimate(self, *, leaf_count: int, selection_path: str | None) -> int:
+        include_stop = "B-query" in self.models and hasattr(self.models["B-query"], "stop_router")
+        if selection_path == "forced_selected_only":
+            hidden = self.config.model.hidden_dim
+            feedforward = self.config.model.feedforward_dim
+            sequence_length = 2 * leaf_count + 1
+            selected_merge = 4 * hidden * feedforward
+            terminal = 2 * hidden + 2 * hidden * feedforward + feedforward * 7
+            return sequence_length * (3 * hidden + hidden * hidden) + (leaf_count - 1) * selected_merge + terminal
+        return estimate_merge_forward_operations(
+            self.config.model,
+            leaf_count,
+            include_stop=include_stop,
+        )
 
     def _evaluate_profile(self, generated: Stage2GeneratedBatch) -> dict[str, object]:
         batch = generated.ordinary.to(self.backend.device)
@@ -477,9 +649,12 @@ class Stage2Trainer:
                         predictions.detach().cpu(), batch.labels.detach().cpu()
                     ),
                     "weight_source": "B-query intervention weights" if fixed_policy else name,
+                    "selection_path": receipt.selection_path,
                 }
                 optimizer_source = "B-query" if fixed_policy is not None else name
-                optimizer_bytes = _tensor_bytes(self.optimizers[optimizer_source].state_dict())
+                optimizer_bytes = _tensor_bytes(
+                    self.optimizers[optimizer_source].state_dict()
+                ) if optimizer_source in self.optimizers else 0
                 parameter_bytes = sum(
                     parameter.numel() * parameter.element_size()
                     for parameter in self.models[model_name].parameters()
@@ -520,8 +695,10 @@ class Stage2Trainer:
                             ),
                             "stop_scores": merge_compute.stop_scores,
                             "router_action_scores": merge_compute.candidate_scores,
-                            "estimated_forward_operations": rows
-                            * estimate_merge_forward_operations(self.config.model, leaf_count),
+                            "estimated_forward_operations": self._merge_operation_estimate(
+                                leaf_count=leaf_count,
+                                selection_path=receipt.selection_path,
+                            ),
                         }
                     )
                     item["structure"] = self._trace_metrics(receipt.merge.traces, generated)
@@ -606,6 +783,81 @@ class Stage2Trainer:
             },
         }
 
+    def _feasibility_gate(self) -> dict[str, object]:
+        failures: list[str] = []
+        profile_results: dict[str, object] = {}
+        profiles = self.latest_evaluation.get("profiles", {})
+        if not isinstance(profiles, dict):
+            return {
+                "phase": "feasibility",
+                "required_controls": R3_FEASIBILITY_GATE_CONTROLS,
+                "thresholds": {
+                    "min_accuracy": self.config.feasibility_min_accuracy,
+                    "max_cross_entropy": self.config.feasibility_max_cross_entropy,
+                    "predicted_classes": 7,
+                    "finite_required": True,
+                },
+                "profiles": {},
+                "passed": False,
+                "failures": ["profiles:invalid"],
+            }
+        for profile in self.config.evaluation_profiles:
+            profile_result = profiles.get(profile.name)
+            if not isinstance(profile_result, dict):
+                failures.append(f"{profile.name}:missing_profile")
+                continue
+            controls = profile_result.get("controls", {})
+            profile_results[profile.name] = {}
+            for control in R3_FEASIBILITY_GATE_CONTROLS:
+                metrics = controls.get(control)
+                if not isinstance(metrics, dict):
+                    failures.append(f"{profile.name}:{control}:missing_control")
+                    continue
+                accuracy = metrics.get("accuracy")
+                cross_entropy = metrics.get("cross_entropy")
+                prediction_counts = metrics.get("prediction_counts")
+                finite = (
+                    isinstance(accuracy, (int, float))
+                    and isinstance(cross_entropy, (int, float))
+                    and math.isfinite(float(accuracy))
+                    and math.isfinite(float(cross_entropy))
+                    and isinstance(prediction_counts, list)
+                    and all(isinstance(item, (int, float)) and math.isfinite(float(item)) for item in prediction_counts)
+                )
+                seven_predicted = (
+                    finite
+                    and len(prediction_counts) == 7
+                    and all(float(item) > 0.0 for item in prediction_counts)
+                )
+                passed = (
+                    finite
+                    and float(accuracy) >= self.config.feasibility_min_accuracy
+                    and float(cross_entropy) <= self.config.feasibility_max_cross_entropy
+                    and seven_predicted
+                )
+                profile_results[profile.name][control] = {
+                    "accuracy": accuracy,
+                    "cross_entropy": cross_entropy,
+                    "seven_predicted_classes": seven_predicted,
+                    "finite": finite,
+                    "passed": passed,
+                }
+                if not passed:
+                    failures.append(f"{profile.name}:{control}:gate_failed")
+        return {
+            "phase": "feasibility",
+            "required_controls": R3_FEASIBILITY_GATE_CONTROLS,
+            "thresholds": {
+                "min_accuracy": self.config.feasibility_min_accuracy,
+                "max_cross_entropy": self.config.feasibility_max_cross_entropy,
+                "predicted_classes": 7,
+                "finite_required": True,
+            },
+            "profiles": profile_results,
+            "passed": not failures,
+            "failures": failures,
+        }
+
     def evaluate(self) -> dict[str, object]:
         profiles: dict[str, object] = {}
         accepted_evaluation_hashes: set[str] = set()
@@ -628,6 +880,8 @@ class Stage2Trainer:
         self.evaluation_family_hashes = accepted_evaluation_hashes
         self.latest_evaluation = {
             "kind": self.config.run_kind,
+            "revision": self.config.revision,
+            "phase": self.config.phase,
             "profiles": profiles,
             "train_evaluation_overlap": 0,
             "training_family_hash_count": len(self.training_family_hashes),
@@ -635,47 +889,82 @@ class Stage2Trainer:
             "training_family_hash_digest": _hash_set_digest(self.training_family_hashes),
             "evaluation_family_hash_digest": _hash_set_digest(self.evaluation_family_hashes),
         }
+        if self.config.revision == "stage2-r3" and self.config.phase == "feasibility":
+            self.latest_evaluation["gate"] = self._feasibility_gate()
         return self.latest_evaluation
+
+    def completed_disposition(self) -> str:
+        if self.config.revision == "stage2-r2":
+            return (
+                "calibration_inconclusive"
+                if self.config.run_kind == "calibration_only"
+                else "smoke_completed"
+            )
+        if self.config.phase == "feasibility":
+            gate = self.latest_evaluation.get("gate")
+            if not isinstance(gate, dict):
+                raise RuntimeError("R3 feasibility requires a completed gate before disposition")
+            return "feasibility_pass" if gate.get("passed") else "feasibility_failed"
+        raise RuntimeError("R3 routing is not ReadyForRouting in this slice")
+
+    def incomplete_disposition(self) -> str:
+        if self.config.revision == "stage2-r2":
+            return (
+                "calibration_inconclusive"
+                if self.config.run_kind == "calibration_only"
+                else "smoke_incomplete"
+            )
+        return "calibration_incomplete"
 
     def budget_report(self) -> dict[str, object]:
         maximum_leaf_count = max(profile.leaf_count for profile in self.config.train_profiles)
         sequence_length = 2 * maximum_leaf_count + 1
+        b_name = "B-query" if "B-query" in self.parameter_counts else "B-oracle"
         merge_operations = estimate_merge_forward_operations(
-            self.config.model, maximum_leaf_count
+            self.config.model,
+            maximum_leaf_count,
+            include_stop=hasattr(self.models[b_name], "stop_router"),
         )
-        param_operations = estimate_transformer_forward_operations(
-            self.config.a_param_model, sequence_length
-        )
-        flop_operations = estimate_transformer_forward_operations(
-            self.config.a_flop_model, sequence_length
-        )
-        b_parameters = self.parameter_counts["B-query"]
-        param_difference = abs(self.parameter_counts["A-Q-param"] - b_parameters)
         optimizer_bytes = {
             name: _tensor_bytes(optimizer.state_dict())
             for name, optimizer in self.optimizers.items()
         }
-        return {
+        report: dict[str, object] = {
             "parameter_counts": self.parameter_counts,
             "optimizer_state_bytes": optimizer_bytes,
-            "A-Q-param": {
+            "accounting_scope": (
+                "B estimate includes token/position projection, every selected and unselected "
+                "candidate composition where the policy requires matched compute, merge routing, "
+                "optional STOP routing, terminal attention, and classifier; training receipts "
+                "add synchronized forward/backward/update wall time"
+            ),
+        }
+        if "A-Q-param" in self.parameter_counts:
+            b_parameters = self.parameter_counts[b_name]
+            param_difference = abs(self.parameter_counts["A-Q-param"] - b_parameters)
+            report["A-Q-param"] = {
                 "absolute_parameter_difference": param_difference,
                 "relative_parameter_difference": param_difference / b_parameters,
-                "status": "matched_within_one_percent" if param_difference / b_parameters <= 0.01 else "unmatched",
-            },
-            "A-Q-flop": {
+                "status": (
+                    "matched_within_one_percent"
+                    if param_difference / b_parameters <= 0.01
+                    else "unmatched"
+                ),
+            }
+            report["A-Q-param_operation_estimate"] = estimate_transformer_forward_operations(
+                self.config.a_param_model, sequence_length
+            )
+        if "A-Q-flop" in self.parameter_counts:
+            flop_operations = estimate_transformer_forward_operations(
+                self.config.a_flop_model, sequence_length
+            )
+            report["A-Q-flop"] = {
                 "B_full_candidate_forward_operation_estimate": merge_operations,
                 "A_forward_operation_estimate": flop_operations,
                 "relative_estimate_difference": abs(flop_operations - merge_operations) / merge_operations,
                 "status": "operation_estimate_only; DirectML exposes no exact FLOP counter",
-            },
-            "A-Q-param_operation_estimate": param_operations,
-            "accounting_scope": (
-                "B estimate includes token/position projection, every selected and unselected "
-                "candidate composition, merge and STOP routing, terminal attention, and classifier; "
-                "training receipts additionally report synchronized forward/backward/update wall time"
-            ),
-        }
+            }
+        return report
 
     def result(self, disposition: str) -> dict[str, object]:
         training: dict[str, object] = {}
@@ -694,7 +983,7 @@ class Stage2Trainer:
             item["optimizer_state_bytes"] = _tensor_bytes(
                 self.optimizers[name].state_dict()
             )
-            if name.startswith("B-"):
+            if name in self._initial_router:
                 current = torch.cat(
                     [parameter.detach().cpu().flatten() for parameter in self.models[name].router.parameters()]
                 )
@@ -704,7 +993,9 @@ class Stage2Trainer:
             training[name] = item
         return {
             "schema_version": 1,
-            "packet": "DH-S2-R2",
+            "packet": self.packet_id,
+            "revision": self.config.revision,
+            "phase": self.config.phase,
             "run_kind": self.config.run_kind,
             "disposition": disposition,
             "global_step": self.global_step,
@@ -718,8 +1009,13 @@ class Stage2Trainer:
             "data_isolation": {
                 "training_unique_base_families": len(self.training_family_hashes),
                 "training_duplicate_families": self.training_duplicate_families,
+                "training_family_exposures": self.training_family_exposures,
+                "training_repeated_family_exposures": (
+                    self.training_repeated_family_exposures
+                ),
                 "evaluation_unique_base_families": len(self.evaluation_family_hashes),
                 "overlap": len(self.training_family_hashes & self.evaluation_family_hashes),
+                "fixed_train_pools": self.fixed_train_pool_evidence,
             },
             "recovery": {
                 "semantics": "at-least-once",
@@ -735,7 +1031,9 @@ class Stage2Trainer:
     def status(self, state: str, detail: str | None = None) -> dict[str, object]:
         return {
             "schema_version": 1,
-            "packet": "DH-S2-R2",
+            "packet": self.packet_id,
+            "revision": self.config.revision,
+            "phase": self.config.phase,
             "state": state,
             "detail": detail,
             "global_step": self.global_step,
@@ -753,6 +1051,7 @@ class Stage2Trainer:
         temporary = path.with_name(path.name + f".{os.getpid()}.tmp")
         payload = {
             "schema_version": 1,
+            "packet": self.packet_id,
             "kind": kind,
             "global_step": self.global_step,
             "elapsed_seconds": self.elapsed_seconds(),
@@ -766,10 +1065,16 @@ class Stage2Trainer:
             "generator_state": self.generator.get_state(),
             "training_family_hashes": sorted(self.training_family_hashes),
             "training_duplicate_families": self.training_duplicate_families,
+            "training_family_exposures": self.training_family_exposures,
+            "training_repeated_family_exposures": self.training_repeated_family_exposures,
+            "exposed_training_family_hashes": sorted(
+                self.exposed_training_family_hashes
+            ),
             "evaluation_family_hashes": sorted(self.evaluation_family_hashes),
             "latest_evaluation": self.latest_evaluation,
             "cumulative": self.cumulative,
             "initial_router": self._initial_router,
+            "fixed_train_pool_evidence": self.fixed_train_pool_evidence,
             "recovery": {
                 "semantics": "at-least-once",
                 "checkpoint_step": self.global_step,
@@ -792,6 +1097,8 @@ class Stage2Trainer:
             raise RuntimeError("Stage 2 requires checkpoint schema version 1")
         if payload.get("config") != self.config.to_dict():
             raise RuntimeError("Stage 2 checkpoint config mismatch")
+        if payload.get("fixed_train_pool_evidence", {}) != self.fixed_train_pool_evidence:
+            raise RuntimeError("Stage 2 fixed training pools did not reconstruct identically")
         for name, model in self.models.items():
             model.load_state_dict(payload["models"][name])
         for name, optimizer in self.optimizers.items():
@@ -805,6 +1112,17 @@ class Stage2Trainer:
         self.process_started = time.monotonic()
         self.training_family_hashes = set(payload["training_family_hashes"])
         self.training_duplicate_families = int(payload["training_duplicate_families"])
+        if self.config.revision == "stage2-r3" and "training_family_exposures" not in payload:
+            raise RuntimeError("R3 checkpoint lacks fixed-pool exposure accounting")
+        self.training_family_exposures = int(
+            payload.get("training_family_exposures", 0)
+        )
+        self.training_repeated_family_exposures = int(
+            payload.get("training_repeated_family_exposures", 0)
+        )
+        self.exposed_training_family_hashes = set(
+            payload.get("exposed_training_family_hashes", ())
+        )
         self.evaluation_family_hashes = set(payload["evaluation_family_hashes"])
         self.latest_evaluation = payload["latest_evaluation"]
         self.cumulative = payload["cumulative"]

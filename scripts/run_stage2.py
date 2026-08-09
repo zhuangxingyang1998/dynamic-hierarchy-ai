@@ -1,4 +1,4 @@
-"""Run a bounded Stage 2 R2 smoke or calibration-only experiment."""
+"""Run a bounded Stage 2 R2/R3 smoke or calibration-only experiment."""
 
 from __future__ import annotations
 
@@ -131,18 +131,10 @@ def main() -> int:
                 trainer.evaluate()
                 if not args.reevaluate_only:
                     trainer.save_checkpoint("final")
-                disposition = (
-                    "calibration_inconclusive"
-                    if config.run_kind == "calibration_only"
-                    else "smoke_completed"
-                )
+                disposition = trainer.completed_disposition()
             else:
                 trainer.save_checkpoint("incomplete")
-                disposition = (
-                    "calibration_inconclusive"
-                    if config.run_kind == "calibration_only"
-                    else "smoke_incomplete"
-                )
+                disposition = trainer.incomplete_disposition()
             runtime_warnings = [str(item.message) for item in captured]
             result = trainer.result(disposition)
             result.update(
@@ -201,7 +193,9 @@ def main() -> int:
         except Exception as error:
             failure = {
                 "schema_version": 1,
-                "packet": "DH-S2-R2",
+                "packet": "DH-S2-R3" if config.revision == "stage2-r3" else "DH-S2-R2",
+                "revision": config.revision,
+                "phase": config.phase,
                 "state": "implementation_invalid",
                 "error_type": type(error).__name__,
                 "error": str(error),

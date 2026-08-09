@@ -69,6 +69,31 @@ class DirectMLBackendTests(unittest.TestCase):
             }
         )
 
+    @staticmethod
+    def _tiny_stage2_r3_directml_config():
+        model = {
+            "vocab_size": 64,
+            "hidden_dim": 8,
+            "heads": 2,
+            "layers": 1,
+            "feedforward_dim": 16,
+            "dropout": 0.0,
+            "temperature": 1.0,
+        }
+        return stage2_config_from_dict(
+            {
+                "revision": "stage2-r3",
+                "phase": "feasibility",
+                "device": "directml",
+                "deterministic": False,
+                "optimizer_steps": 2,
+                "cpu_threads": 1,
+                "yield_ms": 0,
+                "model": model,
+                "a_param_model": {**model, "layers": 3},
+            }
+        )
+
     def test_directml_stage2_hard_router_backward_runs_on_device(self) -> None:
         backend = resolve_backend("directml", cpu_threads=1, deterministic=False)
         batch = Stage2PrecedenceFamilyGenerator(20260809).balanced_block(
@@ -96,6 +121,47 @@ class DirectMLBackendTests(unittest.TestCase):
 
     def test_directml_stage2_checkpoint_restores_optimizer_on_device(self) -> None:
         config = self._tiny_stage2_directml_config()
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            trainer = Stage2Trainer(config, run_dir)
+            trainer.train_step()
+            checkpoint = trainer.save_checkpoint()
+            restored = Stage2Trainer(config, run_dir)
+            restored.load_checkpoint(checkpoint)
+            restored.train_step()
+            self.assertEqual(restored.global_step, 2)
+            for optimizer in restored.optimizers.values():
+                for state in optimizer.state.values():
+                    self.assertEqual(state["exp_avg"].device.type, "privateuseone")
+                    self.assertEqual(state["exp_avg_sq"].device.type, "privateuseone")
+
+    def test_directml_stage2_r3_no_stop_backward_runs_on_device(self) -> None:
+        backend = resolve_backend("directml", cpu_threads=1, deterministic=False)
+        batch = Stage2PrecedenceFamilyGenerator(20260809).balanced_block(
+            Stage2Profile("directml-r3", 3, "-+", "train")
+        ).ordinary.to(backend.device)
+        model = Stage2MergeClassifier(
+            Stage2ModelSpec(hidden_dim=8, heads=2, feedforward_dim=16),
+            allow_stop=False,
+        ).to(backend.device)
+        self.assertFalse(hasattr(model, "stop_router"))
+        output = model(batch, policy="learned")
+        loss = torch.nn.functional.cross_entropy(output.logits, batch.labels)
+        loss.backward()
+        backend.synchronize(next(model.parameters()))
+        self.assertEqual(output.compute.stop_scores, 0)
+        self.assertEqual(output.logits.device.type, "privateuseone")
+        self.assertGreater(
+            sum(
+                float(parameter.grad.detach().square().sum().cpu().item())
+                for parameter in model.router.parameters()
+                if parameter.grad is not None
+            ),
+            0.0,
+        )
+
+    def test_directml_stage2_r3_checkpoint_restores_optimizer_on_device(self) -> None:
+        config = self._tiny_stage2_r3_directml_config()
         with tempfile.TemporaryDirectory() as temporary:
             run_dir = Path(temporary)
             trainer = Stage2Trainer(config, run_dir)
