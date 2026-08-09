@@ -1,0 +1,3114 @@
+{
+  "schema_version": 1,
+  "packet": "DH-S2-R2",
+  "run_kind": "calibration_only",
+  "disposition": "calibration_inconclusive",
+  "global_step": 120,
+  "target_optimizer_steps": 120,
+  "elapsed_seconds": 988.155999999959,
+  "config": {
+    "revision": "stage2-r2",
+    "run_kind": "calibration_only",
+    "seed": 821101,
+    "device": "directml",
+    "deterministic": false,
+    "cpu_threads": 4,
+    "optimizer_steps": 120,
+    "learning_rate": 0.001,
+    "families_per_stratum": 42,
+    "max_generation_attempts_per_family": 512,
+    "checkpoint_steps": 10,
+    "evaluation_blocks": 10,
+    "time_budget_minutes": 30.0,
+    "yield_ms": 2,
+    "cpu_pause_percent": 90.0,
+    "cpu_resume_percent": 75.0,
+    "ram_pause_gb": 4.0,
+    "ram_resume_gb": 6.0,
+    "pressure_samples": 3,
+    "recovery_samples": 2,
+    "controls": [
+      "A-Q-param",
+      "A-Q-flop",
+      "A-recur",
+      "B-query",
+      "B-noQ-router",
+      "B-sham",
+      "F-stop",
+      "F-left",
+      "F-right",
+      "F-add",
+      "F-sub",
+      "D-true",
+      "D-sham"
+    ],
+    "train_profiles": [
+      {
+        "name": "train_n4_alternating",
+        "leaf_count": 4,
+        "operator_pattern": "-+-",
+        "category": "train",
+        "shape_partition": "train"
+      },
+      {
+        "name": "train_n5_run",
+        "leaf_count": 5,
+        "operator_pattern": "--++",
+        "category": "train",
+        "shape_partition": "train"
+      },
+      {
+        "name": "train_n6_alternating",
+        "leaf_count": 6,
+        "operator_pattern": "-+-+-",
+        "category": "train",
+        "shape_partition": "train"
+      }
+    ],
+    "evaluation_profiles": [
+      {
+        "name": "id_n5_alternating",
+        "leaf_count": 5,
+        "operator_pattern": "-+-+",
+        "category": "in_distribution",
+        "shape_partition": "train"
+      },
+      {
+        "name": "length_n8_alternating",
+        "leaf_count": 8,
+        "operator_pattern": "-+-+-+-",
+        "category": "length_extrapolation",
+        "shape_partition": "heldout"
+      },
+      {
+        "name": "topology_n6_runs",
+        "leaf_count": 6,
+        "operator_pattern": "--+--",
+        "category": "topology_extrapolation",
+        "shape_partition": "heldout"
+      }
+    ],
+    "model": {
+      "vocab_size": 64,
+      "hidden_dim": 64,
+      "heads": 4,
+      "layers": 1,
+      "feedforward_dim": 128,
+      "dropout": 0.0,
+      "temperature": 1.0
+    },
+    "a_param_model": {
+      "vocab_size": 64,
+      "hidden_dim": 64,
+      "heads": 4,
+      "layers": 3,
+      "feedforward_dim": 128,
+      "dropout": 0.0,
+      "temperature": 1.0
+    },
+    "a_flop_model": {
+      "vocab_size": 64,
+      "hidden_dim": 64,
+      "heads": 4,
+      "layers": 3,
+      "feedforward_dim": 77,
+      "dropout": 0.0,
+      "temperature": 1.0
+    }
+  },
+  "backend": {
+    "backend": "directml",
+    "device": "privateuseone:0",
+    "device_name": "AMD Radeon RX 9060 XT",
+    "deterministic_algorithms_enabled": false,
+    "determinism_status": "not guaranteed by torch-directml; reproducibility is measured, not assumed",
+    "synchronization_method": "updated model parameter detach().cpu() barrier before timing starts and after the final optimizer write"
+  },
+  "training": {
+    "A-Q-param": {
+      "optimizer_updates": 120,
+      "examples": 10080,
+      "correct": 1427,
+      "loss_sum": 233.93198096752167,
+      "forward_backward_seconds": 3.3056738998857327,
+      "router_gradient_norm_sum": 0.0,
+      "candidate_scores": 0,
+      "candidate_compositions": 0,
+      "selected_compositions": 0,
+      "recurrent_steps": 0,
+      "mean_loss": 1.9494331747293472,
+      "accuracy": 0.14156746031746031,
+      "examples_per_second": 3049.3025946535245,
+      "parameter_count": 109383,
+      "optimizer_state_bytes": 875064
+    },
+    "A-Q-flop": {
+      "optimizer_updates": 120,
+      "examples": 10080,
+      "correct": 1427,
+      "loss_sum": 233.93404686450958,
+      "forward_backward_seconds": 3.3026513002696447,
+      "router_gradient_norm_sum": 0.0,
+      "candidate_scores": 0,
+      "candidate_compositions": 0,
+      "selected_compositions": 0,
+      "recurrent_steps": 0,
+      "mean_loss": 1.94945039053758,
+      "accuracy": 0.14156746031746031,
+      "examples_per_second": 3052.0933285257875,
+      "parameter_count": 89646,
+      "optimizer_state_bytes": 717168
+    },
+    "A-recur": {
+      "optimizer_updates": 120,
+      "examples": 10080,
+      "correct": 1469,
+      "loss_sum": 234.1645770072937,
+      "forward_backward_seconds": 179.6884416998946,
+      "router_gradient_norm_sum": 0.0,
+      "candidate_scores": 0,
+      "candidate_compositions": 0,
+      "selected_compositions": 0,
+      "recurrent_steps": 18098,
+      "mean_loss": 1.951371475060781,
+      "accuracy": 0.145734126984127,
+      "examples_per_second": 56.09709731266433,
+      "parameter_count": 59337,
+      "optimizer_state_bytes": 474696
+    },
+    "B-query": {
+      "optimizer_updates": 120,
+      "examples": 10080,
+      "correct": 1412,
+      "loss_sum": 233.79610419273376,
+      "forward_backward_seconds": 90.99641579965828,
+      "router_gradient_norm_sum": 0.06095768422430562,
+      "candidate_scores": 51247,
+      "candidate_compositions": 40910,
+      "selected_compositions": 283,
+      "recurrent_steps": 10337,
+      "mean_loss": 1.9483008682727814,
+      "accuracy": 0.14007936507936508,
+      "examples_per_second": 110.77359378849133,
+      "parameter_count": 109258,
+      "optimizer_state_bytes": 873552,
+      "router_parameter_delta_l2": 0.6155117750167847
+    },
+    "B-noQ-router": {
+      "optimizer_updates": 120,
+      "examples": 10080,
+      "correct": 1421,
+      "loss_sum": 233.801527261734,
+      "forward_backward_seconds": 95.8656935003819,
+      "router_gradient_norm_sum": 0.22542380941882142,
+      "candidate_scores": 53506,
+      "candidate_compositions": 42556,
+      "selected_compositions": 928,
+      "recurrent_steps": 10950,
+      "mean_loss": 1.94834606051445,
+      "accuracy": 0.14097222222222222,
+      "examples_per_second": 105.14710353563389,
+      "parameter_count": 109258,
+      "optimizer_state_bytes": 874064,
+      "router_parameter_delta_l2": 1.1107419729232788
+    },
+    "B-sham": {
+      "optimizer_updates": 120,
+      "examples": 10080,
+      "correct": 1465,
+      "loss_sum": 233.7891970872879,
+      "forward_backward_seconds": 95.33393769996474,
+      "router_gradient_norm_sum": 0.09648127584848838,
+      "candidate_scores": 52042,
+      "candidate_compositions": 41480,
+      "selected_compositions": 539,
+      "recurrent_steps": 10562,
+      "mean_loss": 1.9482433090607325,
+      "accuracy": 0.1453373015873016,
+      "examples_per_second": 105.73359543506749,
+      "parameter_count": 109258,
+      "optimizer_state_bytes": 873552,
+      "router_parameter_delta_l2": 0.7440919280052185
+    },
+    "D-true": {
+      "optimizer_updates": 120,
+      "examples": 10080,
+      "correct": 1421,
+      "loss_sum": 234.17624282836914,
+      "forward_backward_seconds": 56.806203000363894,
+      "router_gradient_norm_sum": 0.0,
+      "candidate_scores": 0,
+      "candidate_compositions": 0,
+      "selected_compositions": 0,
+      "recurrent_steps": 0,
+      "mean_loss": 1.9514686902364096,
+      "accuracy": 0.14097222222222222,
+      "examples_per_second": 177.44541031787372,
+      "parameter_count": 75527,
+      "optimizer_state_bytes": 604216
+    },
+    "D-sham": {
+      "optimizer_updates": 120,
+      "examples": 10080,
+      "correct": 1486,
+      "loss_sum": 234.1388601064682,
+      "forward_backward_seconds": 57.03322499978822,
+      "router_gradient_norm_sum": 0.0,
+      "candidate_scores": 0,
+      "candidate_compositions": 0,
+      "selected_compositions": 0,
+      "recurrent_steps": 0,
+      "mean_loss": 1.9511571675539017,
+      "accuracy": 0.14742063492063492,
+      "examples_per_second": 176.73908498138462,
+      "parameter_count": 75527,
+      "optimizer_state_bytes": 604216
+    }
+  },
+  "evaluation": {
+    "kind": "calibration_only",
+    "profiles": {
+      "id_n5_alternating": {
+        "profile": "id_n5_alternating",
+        "controls": {
+          "A-Q-param": {
+            "correct": 123,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14642857142857144,
+            "cross_entropy": 1.9464149475097656,
+            "forward_seconds": 0.0379959000274539,
+            "examples_per_second": 22107.648440833324,
+            "prediction_counts": [
+              208,
+              16,
+              94,
+              51,
+              93,
+              238,
+              140
+            ],
+            "paired_outcomes": {
+              "both": 1,
+              "add_only": 61,
+              "sub_only": 60,
+              "neither": 298
+            },
+            "weight_source": "A-Q-param",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 2520,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 109383,
+              "optimizer_state_bytes": 875064,
+              "peak_allocated_tensor_lower_bound_bytes": 1604076,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 987356160
+            }
+          },
+          "A-Q-flop": {
+            "correct": 122,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14523809523809525,
+            "cross_entropy": 1.9463975429534912,
+            "forward_seconds": 0.00937239994527772,
+            "examples_per_second": 89624.8564833422,
+            "prediction_counts": [
+              126,
+              114,
+              14,
+              43,
+              96,
+              372,
+              75
+            ],
+            "paired_outcomes": {
+              "both": 2,
+              "add_only": 64,
+              "sub_only": 54,
+              "neither": 300
+            },
+            "weight_source": "A-Q-flop",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 2520,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 89646,
+              "optimizer_state_bytes": 717168,
+              "peak_allocated_tensor_lower_bound_bytes": 1367232,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 806400000
+            }
+          },
+          "A-recur": {
+            "correct": 110,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.13095238095238096,
+            "cross_entropy": 1.946358323097229,
+            "forward_seconds": 3.211221800011117,
+            "examples_per_second": 261.58267859202124,
+            "prediction_counts": [
+              148,
+              50,
+              0,
+              28,
+              554,
+              40,
+              20
+            ],
+            "paired_outcomes": {
+              "both": 6,
+              "add_only": 54,
+              "sub_only": 44,
+              "neither": 316
+            },
+            "weight_source": "A-recur",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 1260,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 1260,
+              "router_action_scores": 2520,
+              "parameter_count": 59337,
+              "optimizer_state_bytes": 474696,
+              "peak_allocated_tensor_lower_bound_bytes": 1003524,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "early_stops": 840,
+              "estimated_forward_operations": 533675520
+            }
+          },
+          "B-query": {
+            "correct": 126,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15,
+            "cross_entropy": 1.9482390880584717,
+            "forward_seconds": 3.3075937000103295,
+            "examples_per_second": 253.96105936390455,
+            "prediction_counts": [
+              117,
+              96,
+              91,
+              78,
+              212,
+              202,
+              44
+            ],
+            "paired_outcomes": {
+              "both": 10,
+              "add_only": 56,
+              "sub_only": 50,
+              "neither": 304
+            },
+            "weight_source": "B-query",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 4200,
+              "candidate_compositions": 3360,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 3360,
+              "stop_scores": 840,
+              "router_action_scores": 4200,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1602064,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 663237120
+            }
+          },
+          "B-noQ-router": {
+            "correct": 122,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14523809523809525,
+            "cross_entropy": 1.9492243528366089,
+            "forward_seconds": 3.314323099970352,
+            "examples_per_second": 253.4454169563354,
+            "prediction_counts": [
+              105,
+              106,
+              58,
+              74,
+              223,
+              227,
+              47
+            ],
+            "paired_outcomes": {
+              "both": 8,
+              "add_only": 61,
+              "sub_only": 45,
+              "neither": 306
+            },
+            "weight_source": "B-noQ-router",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 4200,
+              "candidate_compositions": 3360,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 3360,
+              "stop_scores": 840,
+              "router_action_scores": 4200,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 874064,
+              "peak_allocated_tensor_lower_bound_bytes": 1602576,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 663237120
+            }
+          },
+          "B-sham": {
+            "correct": 128,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.1523809523809524,
+            "cross_entropy": 1.948641300201416,
+            "forward_seconds": 3.478834600013215,
+            "examples_per_second": 241.4601717474033,
+            "prediction_counts": [
+              116,
+              96,
+              50,
+              97,
+              228,
+              233,
+              20
+            ],
+            "paired_outcomes": {
+              "both": 8,
+              "add_only": 65,
+              "sub_only": 47,
+              "neither": 300
+            },
+            "weight_source": "B-sham",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 4200,
+              "candidate_compositions": 3360,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 3360,
+              "stop_scores": 840,
+              "router_action_scores": 4200,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1602064,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 663237120
+            }
+          },
+          "F-stop": {
+            "correct": 126,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15,
+            "cross_entropy": 1.9482390880584717,
+            "forward_seconds": 3.070857899961993,
+            "examples_per_second": 273.53919567896526,
+            "prediction_counts": [
+              117,
+              96,
+              91,
+              78,
+              212,
+              202,
+              44
+            ],
+            "paired_outcomes": {
+              "both": 10,
+              "add_only": 56,
+              "sub_only": 50,
+              "neither": 304
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 4200,
+              "candidate_compositions": 3360,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 3360,
+              "stop_scores": 840,
+              "router_action_scores": 4200,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1602064,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 663237120
+            }
+          },
+          "F-left": {
+            "correct": 129,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15357142857142858,
+            "cross_entropy": 1.9551057815551758,
+            "forward_seconds": 7.190941800014116,
+            "examples_per_second": 116.81362794486128,
+            "prediction_counts": [
+              631,
+              0,
+              19,
+              151,
+              34,
+              5,
+              0
+            ],
+            "paired_outcomes": {
+              "both": 3,
+              "add_only": 68,
+              "sub_only": 55,
+              "neither": 294
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.25,
+              "edge_recall": 0.25,
+              "edge_f1": 0.25,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 3360,
+              "candidate_scores": 11760,
+              "candidate_compositions": 8400,
+              "selected_compositions": 3360,
+              "unselected_candidate_compositions": 5040,
+              "stop_scores": 3360,
+              "router_action_scores": 11760,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1602064,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 663237120
+            }
+          },
+          "F-right": {
+            "correct": 126,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15,
+            "cross_entropy": 1.9560309648513794,
+            "forward_seconds": 7.155292800045572,
+            "examples_per_second": 117.39561517240078,
+            "prediction_counts": [
+              0,
+              231,
+              0,
+              378,
+              12,
+              219,
+              0
+            ],
+            "paired_outcomes": {
+              "both": 2,
+              "add_only": 55,
+              "sub_only": 67,
+              "neither": 296
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.125,
+              "edge_recall": 0.125,
+              "edge_f1": 0.125,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 3360,
+              "candidate_scores": 11760,
+              "candidate_compositions": 8400,
+              "selected_compositions": 3360,
+              "unselected_candidate_compositions": 5040,
+              "stop_scores": 3360,
+              "router_action_scores": 11760,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1602064,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 663237120
+            }
+          },
+          "F-add": {
+            "correct": 132,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15714285714285714,
+            "cross_entropy": 1.9515330791473389,
+            "forward_seconds": 7.146822200040333,
+            "examples_per_second": 117.5347555162712,
+            "prediction_counts": [
+              212,
+              124,
+              139,
+              29,
+              11,
+              325,
+              0
+            ],
+            "paired_outcomes": {
+              "both": 5,
+              "add_only": 54,
+              "sub_only": 68,
+              "neither": 293
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.5,
+              "edge_recall": 0.5,
+              "edge_f1": 0.5,
+              "exact_tree_rate": 0.5,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 3360,
+              "candidate_scores": 11760,
+              "candidate_compositions": 8400,
+              "selected_compositions": 3360,
+              "unselected_candidate_compositions": 5040,
+              "stop_scores": 3360,
+              "router_action_scores": 11760,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1602064,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 663237120
+            }
+          },
+          "F-sub": {
+            "correct": 139,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.16547619047619047,
+            "cross_entropy": 1.9501794576644897,
+            "forward_seconds": 7.177549000014551,
+            "examples_per_second": 117.03159393245481,
+            "prediction_counts": [
+              524,
+              6,
+              51,
+              198,
+              14,
+              34,
+              13
+            ],
+            "paired_outcomes": {
+              "both": 6,
+              "add_only": 66,
+              "sub_only": 61,
+              "neither": 287
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.5,
+              "edge_recall": 0.5,
+              "edge_f1": 0.5,
+              "exact_tree_rate": 0.5,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 3360,
+              "candidate_scores": 11760,
+              "candidate_compositions": 8400,
+              "selected_compositions": 3360,
+              "unselected_candidate_compositions": 5040,
+              "stop_scores": 3360,
+              "router_action_scores": 11760,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1602064,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 663237120
+            }
+          },
+          "D-true": {
+            "correct": 119,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14166666666666666,
+            "cross_entropy": 1.947833776473999,
+            "forward_seconds": 1.1598634999827482,
+            "examples_per_second": 724.2231521316897,
+            "prediction_counts": [
+              190,
+              0,
+              121,
+              22,
+              297,
+              210,
+              0
+            ],
+            "paired_outcomes": {
+              "both": 11,
+              "add_only": 48,
+              "sub_only": 49,
+              "neither": 312
+            },
+            "weight_source": "D-true",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 3360,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 75527,
+              "optimizer_state_bytes": 604216,
+              "peak_allocated_tensor_lower_bound_bytes": 1197804,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 465884160
+            }
+          },
+          "D-sham": {
+            "correct": 115,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.13690476190476192,
+            "cross_entropy": 1.9493314027786255,
+            "forward_seconds": 1.2686322000226937,
+            "examples_per_second": 662.1304425230369,
+            "prediction_counts": [
+              214,
+              208,
+              48,
+              160,
+              134,
+              54,
+              22
+            ],
+            "paired_outcomes": {
+              "both": 9,
+              "add_only": 50,
+              "sub_only": 47,
+              "neither": 314
+            },
+            "weight_source": "D-sham",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 3360,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 75527,
+              "optimizer_state_bytes": 604216,
+              "peak_allocated_tensor_lower_bound_bytes": 1197804,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 465884160
+            }
+          }
+        },
+        "generation": {
+          "attempts": 890,
+          "accepted_families": 420,
+          "label_pair_counts": [
+            [
+              0,
+              1,
+              10
+            ],
+            [
+              0,
+              2,
+              10
+            ],
+            [
+              0,
+              3,
+              10
+            ],
+            [
+              0,
+              4,
+              10
+            ],
+            [
+              0,
+              5,
+              10
+            ],
+            [
+              0,
+              6,
+              10
+            ],
+            [
+              1,
+              0,
+              10
+            ],
+            [
+              1,
+              2,
+              10
+            ],
+            [
+              1,
+              3,
+              10
+            ],
+            [
+              1,
+              4,
+              10
+            ],
+            [
+              1,
+              5,
+              10
+            ],
+            [
+              1,
+              6,
+              10
+            ],
+            [
+              2,
+              0,
+              10
+            ],
+            [
+              2,
+              1,
+              10
+            ],
+            [
+              2,
+              3,
+              10
+            ],
+            [
+              2,
+              4,
+              10
+            ],
+            [
+              2,
+              5,
+              10
+            ],
+            [
+              2,
+              6,
+              10
+            ],
+            [
+              3,
+              0,
+              10
+            ],
+            [
+              3,
+              1,
+              10
+            ],
+            [
+              3,
+              2,
+              10
+            ],
+            [
+              3,
+              4,
+              10
+            ],
+            [
+              3,
+              5,
+              10
+            ],
+            [
+              3,
+              6,
+              10
+            ],
+            [
+              4,
+              0,
+              10
+            ],
+            [
+              4,
+              1,
+              10
+            ],
+            [
+              4,
+              2,
+              10
+            ],
+            [
+              4,
+              3,
+              10
+            ],
+            [
+              4,
+              5,
+              10
+            ],
+            [
+              4,
+              6,
+              10
+            ],
+            [
+              5,
+              0,
+              10
+            ],
+            [
+              5,
+              1,
+              10
+            ],
+            [
+              5,
+              2,
+              10
+            ],
+            [
+              5,
+              3,
+              10
+            ],
+            [
+              5,
+              4,
+              10
+            ],
+            [
+              5,
+              6,
+              10
+            ],
+            [
+              6,
+              0,
+              10
+            ],
+            [
+              6,
+              1,
+              10
+            ],
+            [
+              6,
+              2,
+              10
+            ],
+            [
+              6,
+              3,
+              10
+            ],
+            [
+              6,
+              4,
+              10
+            ],
+            [
+              6,
+              5,
+              10
+            ]
+          ],
+          "structural_rejections": 0,
+          "equal_label_rejections": 125,
+          "quota_rejections": 340,
+          "excluded_family_rejections": 0,
+          "duplicate_family_rejections": 5,
+          "fixed_policy_counterexample_rows": {
+            "stop": 840,
+            "left": 840,
+            "right": 840,
+            "add": 420,
+            "sub": 420
+          }
+        },
+        "canaries": {
+          "query_label_counts": {
+            "0": [
+              60,
+              60,
+              60,
+              60,
+              60,
+              60,
+              60
+            ],
+            "1": [
+              60,
+              60,
+              60,
+              60,
+              60,
+              60,
+              60
+            ]
+          },
+          "query_only_lookup_accuracy": 0.14285714285714285,
+          "input_only_lookup_accuracy": 0.5,
+          "input_only_basis": "each unique base input occurs with two unequal labels"
+        }
+      },
+      "length_n8_alternating": {
+        "profile": "length_n8_alternating",
+        "controls": {
+          "A-Q-param": {
+            "correct": 126,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15,
+            "cross_entropy": 1.945061206817627,
+            "forward_seconds": 0.022249600035138428,
+            "examples_per_second": 37753.487643526256,
+            "prediction_counts": [
+              276,
+              14,
+              121,
+              107,
+              63,
+              226,
+              33
+            ],
+            "paired_outcomes": {
+              "both": 4,
+              "add_only": 62,
+              "sub_only": 56,
+              "neither": 298
+            },
+            "weight_source": "A-Q-param",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 2520,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 109383,
+              "optimizer_state_bytes": 875064,
+              "peak_allocated_tensor_lower_bound_bytes": 1750236,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1558609920
+            }
+          },
+          "A-Q-flop": {
+            "correct": 110,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.13095238095238096,
+            "cross_entropy": 1.9455795288085938,
+            "forward_seconds": 0.007221799984108657,
+            "examples_per_second": 116314.49248779993,
+            "prediction_counts": [
+              96,
+              243,
+              5,
+              3,
+              110,
+              362,
+              21
+            ],
+            "paired_outcomes": {
+              "both": 2,
+              "add_only": 57,
+              "sub_only": 49,
+              "neither": 312
+            },
+            "weight_source": "A-Q-flop",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 2520,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 89646,
+              "optimizer_state_bytes": 717168,
+              "peak_allocated_tensor_lower_bound_bytes": 1513392,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1278950400
+            }
+          },
+          "A-recur": {
+            "correct": 124,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14761904761904762,
+            "cross_entropy": 1.9447063207626343,
+            "forward_seconds": 3.2695194999687374,
+            "examples_per_second": 256.91848603687237,
+            "prediction_counts": [
+              119,
+              17,
+              19,
+              25,
+              493,
+              32,
+              135
+            ],
+            "paired_outcomes": {
+              "both": 7,
+              "add_only": 53,
+              "sub_only": 57,
+              "neither": 303
+            },
+            "weight_source": "A-recur",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 1260,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 1260,
+              "router_action_scores": 2520,
+              "parameter_count": 59337,
+              "optimizer_state_bytes": 474696,
+              "peak_allocated_tensor_lower_bound_bytes": 1149684,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "early_stops": 840,
+              "estimated_forward_operations": 840913920
+            }
+          },
+          "B-query": {
+            "correct": 131,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15595238095238095,
+            "cross_entropy": 1.9448751211166382,
+            "forward_seconds": 4.587664999999106,
+            "examples_per_second": 183.09968142838758,
+            "prediction_counts": [
+              142,
+              133,
+              80,
+              68,
+              196,
+              158,
+              63
+            ],
+            "paired_outcomes": {
+              "both": 9,
+              "add_only": 54,
+              "sub_only": 59,
+              "neither": 298
+            },
+            "weight_source": "B-query",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 6720,
+              "candidate_compositions": 5880,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 5880,
+              "stop_scores": 840,
+              "router_action_scores": 6720,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1748224,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1721879040
+            }
+          },
+          "B-noQ-router": {
+            "correct": 130,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15476190476190477,
+            "cross_entropy": 1.945162057876587,
+            "forward_seconds": 4.558843400038313,
+            "examples_per_second": 184.25726139067214,
+            "prediction_counts": [
+              108,
+              171,
+              69,
+              66,
+              211,
+              155,
+              60
+            ],
+            "paired_outcomes": {
+              "both": 9,
+              "add_only": 55,
+              "sub_only": 57,
+              "neither": 299
+            },
+            "weight_source": "B-noQ-router",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 6720,
+              "candidate_compositions": 5880,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 5880,
+              "stop_scores": 840,
+              "router_action_scores": 6720,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 874064,
+              "peak_allocated_tensor_lower_bound_bytes": 1748736,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1721879040
+            }
+          },
+          "B-sham": {
+            "correct": 127,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15119047619047618,
+            "cross_entropy": 1.9447332620620728,
+            "forward_seconds": 4.770447299990337,
+            "examples_per_second": 176.08411689228836,
+            "prediction_counts": [
+              120,
+              171,
+              55,
+              90,
+              227,
+              150,
+              27
+            ],
+            "paired_outcomes": {
+              "both": 10,
+              "add_only": 50,
+              "sub_only": 57,
+              "neither": 303
+            },
+            "weight_source": "B-sham",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 6720,
+              "candidate_compositions": 5880,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 5880,
+              "stop_scores": 840,
+              "router_action_scores": 6720,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1748224,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1721879040
+            }
+          },
+          "F-stop": {
+            "correct": 131,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15595238095238095,
+            "cross_entropy": 1.9448751211166382,
+            "forward_seconds": 4.39246370003093,
+            "examples_per_second": 191.2366401557479,
+            "prediction_counts": [
+              142,
+              133,
+              80,
+              68,
+              196,
+              158,
+              63
+            ],
+            "paired_outcomes": {
+              "both": 9,
+              "add_only": 54,
+              "sub_only": 59,
+              "neither": 298
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 6720,
+              "candidate_compositions": 5880,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 5880,
+              "stop_scores": 840,
+              "router_action_scores": 6720,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1748224,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1721879040
+            }
+          },
+          "F-left": {
+            "correct": 121,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14404761904761904,
+            "cross_entropy": 1.9525260925292969,
+            "forward_seconds": 13.477188799995929,
+            "examples_per_second": 62.327538217781274,
+            "prediction_counts": [
+              59,
+              29,
+              151,
+              25,
+              12,
+              564,
+              0
+            ],
+            "paired_outcomes": {
+              "both": 4,
+              "add_only": 46,
+              "sub_only": 67,
+              "neither": 303
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.14285714285714285,
+              "edge_recall": 0.14285714285714285,
+              "edge_f1": 0.14285714285714285,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 5880,
+              "candidate_scores": 29400,
+              "candidate_compositions": 23520,
+              "selected_compositions": 5880,
+              "unselected_candidate_compositions": 17640,
+              "stop_scores": 5880,
+              "router_action_scores": 29400,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1748224,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1721879040
+            }
+          },
+          "F-right": {
+            "correct": 115,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.13690476190476192,
+            "cross_entropy": 1.9534744024276733,
+            "forward_seconds": 13.410796999989543,
+            "examples_per_second": 62.63609836168984,
+            "prediction_counts": [
+              0,
+              212,
+              0,
+              377,
+              9,
+              242,
+              0
+            ],
+            "paired_outcomes": {
+              "both": 3,
+              "add_only": 49,
+              "sub_only": 60,
+              "neither": 308
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.07142857142857142,
+              "edge_recall": 0.07142857142857142,
+              "edge_f1": 0.07142857142857142,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 5880,
+              "candidate_scores": 29400,
+              "candidate_compositions": 23520,
+              "selected_compositions": 5880,
+              "unselected_candidate_compositions": 17640,
+              "stop_scores": 5880,
+              "router_action_scores": 29400,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1748224,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1721879040
+            }
+          },
+          "F-add": {
+            "correct": 117,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.1392857142857143,
+            "cross_entropy": 1.9539717435836792,
+            "forward_seconds": 13.451403799990658,
+            "examples_per_second": 62.44701389460804,
+            "prediction_counts": [
+              298,
+              0,
+              215,
+              6,
+              2,
+              275,
+              44
+            ],
+            "paired_outcomes": {
+              "both": 5,
+              "add_only": 48,
+              "sub_only": 59,
+              "neither": 308
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.5,
+              "edge_recall": 0.5,
+              "edge_f1": 0.5,
+              "exact_tree_rate": 0.5,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 5880,
+              "candidate_scores": 29400,
+              "candidate_compositions": 23520,
+              "selected_compositions": 5880,
+              "unselected_candidate_compositions": 17640,
+              "stop_scores": 5880,
+              "router_action_scores": 29400,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1748224,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1721879040
+            }
+          },
+          "F-sub": {
+            "correct": 108,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.12857142857142856,
+            "cross_entropy": 1.9561089277267456,
+            "forward_seconds": 13.840739400009625,
+            "examples_per_second": 60.690399242645654,
+            "prediction_counts": [
+              456,
+              11,
+              26,
+              326,
+              21,
+              0,
+              0
+            ],
+            "paired_outcomes": {
+              "both": 3,
+              "add_only": 48,
+              "sub_only": 54,
+              "neither": 315
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.5,
+              "edge_recall": 0.5,
+              "edge_f1": 0.5,
+              "exact_tree_rate": 0.5,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 5880,
+              "candidate_scores": 29400,
+              "candidate_compositions": 23520,
+              "selected_compositions": 5880,
+              "unselected_candidate_compositions": 17640,
+              "stop_scores": 5880,
+              "router_action_scores": 29400,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1748224,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1721879040
+            }
+          },
+          "D-true": {
+            "correct": 106,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.1261904761904762,
+            "cross_entropy": 1.9470432996749878,
+            "forward_seconds": 2.426255200000014,
+            "examples_per_second": 346.21255010602147,
+            "prediction_counts": [
+              227,
+              0,
+              114,
+              66,
+              216,
+              134,
+              83
+            ],
+            "paired_outcomes": {
+              "both": 9,
+              "add_only": 35,
+              "sub_only": 53,
+              "neither": 323
+            },
+            "weight_source": "D-true",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 5880,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 75527,
+              "optimizer_state_bytes": 604216,
+              "peak_allocated_tensor_lower_bound_bytes": 1343964,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 753285120
+            }
+          },
+          "D-sham": {
+            "correct": 107,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.12738095238095237,
+            "cross_entropy": 1.949782133102417,
+            "forward_seconds": 2.426714900007937,
+            "examples_per_second": 346.146966006288,
+            "prediction_counts": [
+              148,
+              148,
+              40,
+              262,
+              167,
+              74,
+              1
+            ],
+            "paired_outcomes": {
+              "both": 4,
+              "add_only": 43,
+              "sub_only": 56,
+              "neither": 317
+            },
+            "weight_source": "D-sham",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 5880,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 75527,
+              "optimizer_state_bytes": 604216,
+              "peak_allocated_tensor_lower_bound_bytes": 1343964,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 753285120
+            }
+          }
+        },
+        "generation": {
+          "attempts": 1057,
+          "accepted_families": 420,
+          "label_pair_counts": [
+            [
+              0,
+              1,
+              10
+            ],
+            [
+              0,
+              2,
+              10
+            ],
+            [
+              0,
+              3,
+              10
+            ],
+            [
+              0,
+              4,
+              10
+            ],
+            [
+              0,
+              5,
+              10
+            ],
+            [
+              0,
+              6,
+              10
+            ],
+            [
+              1,
+              0,
+              10
+            ],
+            [
+              1,
+              2,
+              10
+            ],
+            [
+              1,
+              3,
+              10
+            ],
+            [
+              1,
+              4,
+              10
+            ],
+            [
+              1,
+              5,
+              10
+            ],
+            [
+              1,
+              6,
+              10
+            ],
+            [
+              2,
+              0,
+              10
+            ],
+            [
+              2,
+              1,
+              10
+            ],
+            [
+              2,
+              3,
+              10
+            ],
+            [
+              2,
+              4,
+              10
+            ],
+            [
+              2,
+              5,
+              10
+            ],
+            [
+              2,
+              6,
+              10
+            ],
+            [
+              3,
+              0,
+              10
+            ],
+            [
+              3,
+              1,
+              10
+            ],
+            [
+              3,
+              2,
+              10
+            ],
+            [
+              3,
+              4,
+              10
+            ],
+            [
+              3,
+              5,
+              10
+            ],
+            [
+              3,
+              6,
+              10
+            ],
+            [
+              4,
+              0,
+              10
+            ],
+            [
+              4,
+              1,
+              10
+            ],
+            [
+              4,
+              2,
+              10
+            ],
+            [
+              4,
+              3,
+              10
+            ],
+            [
+              4,
+              5,
+              10
+            ],
+            [
+              4,
+              6,
+              10
+            ],
+            [
+              5,
+              0,
+              10
+            ],
+            [
+              5,
+              1,
+              10
+            ],
+            [
+              5,
+              2,
+              10
+            ],
+            [
+              5,
+              3,
+              10
+            ],
+            [
+              5,
+              4,
+              10
+            ],
+            [
+              5,
+              6,
+              10
+            ],
+            [
+              6,
+              0,
+              10
+            ],
+            [
+              6,
+              1,
+              10
+            ],
+            [
+              6,
+              2,
+              10
+            ],
+            [
+              6,
+              3,
+              10
+            ],
+            [
+              6,
+              4,
+              10
+            ],
+            [
+              6,
+              5,
+              10
+            ]
+          ],
+          "structural_rejections": 0,
+          "equal_label_rejections": 160,
+          "quota_rejections": 477,
+          "excluded_family_rejections": 0,
+          "duplicate_family_rejections": 0,
+          "fixed_policy_counterexample_rows": {
+            "stop": 840,
+            "left": 840,
+            "right": 840,
+            "add": 420,
+            "sub": 420
+          }
+        },
+        "canaries": {
+          "query_label_counts": {
+            "0": [
+              60,
+              60,
+              60,
+              60,
+              60,
+              60,
+              60
+            ],
+            "1": [
+              60,
+              60,
+              60,
+              60,
+              60,
+              60,
+              60
+            ]
+          },
+          "query_only_lookup_accuracy": 0.14285714285714285,
+          "input_only_lookup_accuracy": 0.5,
+          "input_only_basis": "each unique base input occurs with two unequal labels"
+        }
+      },
+      "topology_n6_runs": {
+        "profile": "topology_n6_runs",
+        "controls": {
+          "A-Q-param": {
+            "correct": 134,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.1595238095238095,
+            "cross_entropy": 1.9456456899642944,
+            "forward_seconds": 0.011611499998252839,
+            "examples_per_second": 72342.07467824082,
+            "prediction_counts": [
+              186,
+              99,
+              179,
+              77,
+              83,
+              167,
+              49
+            ],
+            "paired_outcomes": {
+              "both": 2,
+              "add_only": 64,
+              "sub_only": 66,
+              "neither": 288
+            },
+            "weight_source": "A-Q-param",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 2520,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 109383,
+              "optimizer_state_bytes": 875064,
+              "peak_allocated_tensor_lower_bound_bytes": 1652796,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 1175193600
+            }
+          },
+          "A-Q-flop": {
+            "correct": 115,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.13690476190476192,
+            "cross_entropy": 1.945507287979126,
+            "forward_seconds": 0.006327599985525012,
+            "examples_per_second": 132751.75452329163,
+            "prediction_counts": [
+              154,
+              173,
+              68,
+              32,
+              216,
+              112,
+              85
+            ],
+            "paired_outcomes": {
+              "both": 6,
+              "add_only": 54,
+              "sub_only": 49,
+              "neither": 311
+            },
+            "weight_source": "A-Q-flop",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 2520,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 89646,
+              "optimizer_state_bytes": 717168,
+              "peak_allocated_tensor_lower_bound_bytes": 1415952,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 961336320
+            }
+          },
+          "A-recur": {
+            "correct": 125,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.1488095238095238,
+            "cross_entropy": 1.9459284543991089,
+            "forward_seconds": 3.272187699971255,
+            "examples_per_second": 256.70899013750926,
+            "prediction_counts": [
+              159,
+              8,
+              0,
+              7,
+              524,
+              21,
+              121
+            ],
+            "paired_outcomes": {
+              "both": 9,
+              "add_only": 51,
+              "sub_only": 56,
+              "neither": 304
+            },
+            "weight_source": "A-recur",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 1260,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 1260,
+              "router_action_scores": 2520,
+              "parameter_count": 59337,
+              "optimizer_state_bytes": 474696,
+              "peak_allocated_tensor_lower_bound_bytes": 1052244,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "early_stops": 840,
+              "estimated_forward_operations": 634798080
+            }
+          },
+          "B-query": {
+            "correct": 126,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15,
+            "cross_entropy": 1.947933554649353,
+            "forward_seconds": 3.8481956999748945,
+            "examples_per_second": 218.28411689288052,
+            "prediction_counts": [
+              117,
+              124,
+              100,
+              61,
+              199,
+              167,
+              72
+            ],
+            "paired_outcomes": {
+              "both": 16,
+              "add_only": 58,
+              "sub_only": 36,
+              "neither": 310
+            },
+            "weight_source": "B-query",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 5040,
+              "candidate_compositions": 4200,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 4200,
+              "stop_scores": 840,
+              "router_action_scores": 5040,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1650784,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 960852480
+            }
+          },
+          "B-noQ-router": {
+            "correct": 122,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14523809523809525,
+            "cross_entropy": 1.9484692811965942,
+            "forward_seconds": 3.841895699966699,
+            "examples_per_second": 218.64206256491582,
+            "prediction_counts": [
+              99,
+              157,
+              81,
+              61,
+              212,
+              164,
+              66
+            ],
+            "paired_outcomes": {
+              "both": 9,
+              "add_only": 63,
+              "sub_only": 41,
+              "neither": 307
+            },
+            "weight_source": "B-noQ-router",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 5040,
+              "candidate_compositions": 4200,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 4200,
+              "stop_scores": 840,
+              "router_action_scores": 5040,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 874064,
+              "peak_allocated_tensor_lower_bound_bytes": 1651296,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 960852480
+            }
+          },
+          "B-sham": {
+            "correct": 126,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15,
+            "cross_entropy": 1.9480780363082886,
+            "forward_seconds": 3.9771571999881417,
+            "examples_per_second": 211.20613487505713,
+            "prediction_counts": [
+              121,
+              138,
+              68,
+              78,
+              226,
+              176,
+              33
+            ],
+            "paired_outcomes": {
+              "both": 11,
+              "add_only": 61,
+              "sub_only": 43,
+              "neither": 305
+            },
+            "weight_source": "B-sham",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 5040,
+              "candidate_compositions": 4200,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 4200,
+              "stop_scores": 840,
+              "router_action_scores": 5040,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1650784,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 960852480
+            }
+          },
+          "F-stop": {
+            "correct": 126,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.15,
+            "cross_entropy": 1.947933554649353,
+            "forward_seconds": 3.6811735999654047,
+            "examples_per_second": 228.18809740673308,
+            "prediction_counts": [
+              117,
+              124,
+              100,
+              61,
+              199,
+              167,
+              72
+            ],
+            "paired_outcomes": {
+              "both": 16,
+              "add_only": 58,
+              "sub_only": 36,
+              "neither": 310
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 1.0,
+              "early_stop_rate": 1.0,
+              "full_reduction_rate": 0.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 5040,
+              "candidate_compositions": 4200,
+              "selected_compositions": 0,
+              "unselected_candidate_compositions": 4200,
+              "stop_scores": 840,
+              "router_action_scores": 5040,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1650784,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 960852480
+            }
+          },
+          "F-left": {
+            "correct": 122,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14523809523809525,
+            "cross_entropy": 1.9584028720855713,
+            "forward_seconds": 9.0325756999664,
+            "examples_per_second": 92.99672960428381,
+            "prediction_counts": [
+              188,
+              0,
+              178,
+              40,
+              49,
+              377,
+              8
+            ],
+            "paired_outcomes": {
+              "both": 2,
+              "add_only": 48,
+              "sub_only": 70,
+              "neither": 300
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.5,
+              "edge_recall": 0.5,
+              "edge_f1": 0.5,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 4200,
+              "candidate_scores": 16800,
+              "candidate_compositions": 12600,
+              "selected_compositions": 4200,
+              "unselected_candidate_compositions": 8400,
+              "stop_scores": 4200,
+              "router_action_scores": 16800,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1650784,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 960852480
+            }
+          },
+          "F-right": {
+            "correct": 119,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14166666666666666,
+            "cross_entropy": 1.956499457359314,
+            "forward_seconds": 9.065942200017162,
+            "examples_per_second": 92.65446232366338,
+            "prediction_counts": [
+              0,
+              195,
+              10,
+              456,
+              16,
+              163,
+              0
+            ],
+            "paired_outcomes": {
+              "both": 2,
+              "add_only": 64,
+              "sub_only": 51,
+              "neither": 303
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.0,
+              "edge_recall": 0.0,
+              "edge_f1": 0.0,
+              "exact_tree_rate": 0.0,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 4200,
+              "candidate_scores": 16800,
+              "candidate_compositions": 12600,
+              "selected_compositions": 4200,
+              "unselected_candidate_compositions": 8400,
+              "stop_scores": 4200,
+              "router_action_scores": 16800,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1650784,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 960852480
+            }
+          },
+          "F-add": {
+            "correct": 120,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14285714285714285,
+            "cross_entropy": 1.957830786705017,
+            "forward_seconds": 9.20873000001302,
+            "examples_per_second": 91.21779007515829,
+            "prediction_counts": [
+              207,
+              1,
+              196,
+              27,
+              24,
+              373,
+              12
+            ],
+            "paired_outcomes": {
+              "both": 4,
+              "add_only": 49,
+              "sub_only": 63,
+              "neither": 304
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.6,
+              "edge_recall": 0.6,
+              "edge_f1": 0.6,
+              "exact_tree_rate": 0.5,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 4200,
+              "candidate_scores": 16800,
+              "candidate_compositions": 12600,
+              "selected_compositions": 4200,
+              "unselected_candidate_compositions": 8400,
+              "stop_scores": 4200,
+              "router_action_scores": 16800,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1650784,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 960852480
+            }
+          },
+          "F-sub": {
+            "correct": 103,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.12261904761904761,
+            "cross_entropy": 1.9622268676757812,
+            "forward_seconds": 9.269730300002266,
+            "examples_per_second": 90.6175231440978,
+            "prediction_counts": [
+              534,
+              2,
+              5,
+              295,
+              4,
+              0,
+              0
+            ],
+            "paired_outcomes": {
+              "both": 2,
+              "add_only": 47,
+              "sub_only": 52,
+              "neither": 319
+            },
+            "weight_source": "B-query intervention weights",
+            "structure": {
+              "edge_precision": 0.6,
+              "edge_recall": 0.6,
+              "edge_f1": 0.6,
+              "exact_tree_rate": 0.5,
+              "mean_same_family_trace_jaccard_distance": 0.0,
+              "query_identical_trace_rate": 1.0,
+              "immediate_stop_rate": 0.0,
+              "early_stop_rate": 0.0,
+              "full_reduction_rate": 1.0,
+              "always_left_rate": 0.0,
+              "always_right_rate": 0.0
+            },
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 4200,
+              "candidate_scores": 16800,
+              "candidate_compositions": 12600,
+              "selected_compositions": 4200,
+              "unselected_candidate_compositions": 8400,
+              "stop_scores": 4200,
+              "router_action_scores": 16800,
+              "parameter_count": 109258,
+              "optimizer_state_bytes": 873552,
+              "peak_allocated_tensor_lower_bound_bytes": 1650784,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 960852480
+            }
+          },
+          "D-true": {
+            "correct": 142,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.16904761904761906,
+            "cross_entropy": 1.9452744722366333,
+            "forward_seconds": 1.5384690000209957,
+            "examples_per_second": 545.997351905392,
+            "prediction_counts": [
+              333,
+              0,
+              80,
+              86,
+              118,
+              160,
+              63
+            ],
+            "paired_outcomes": {
+              "both": 13,
+              "add_only": 54,
+              "sub_only": 62,
+              "neither": 291
+            },
+            "weight_source": "D-true",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 4200,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 75527,
+              "optimizer_state_bytes": 604216,
+              "peak_allocated_tensor_lower_bound_bytes": 1246524,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 560824320
+            }
+          },
+          "D-sham": {
+            "correct": 121,
+            "query_rows": 840,
+            "base_families": 420,
+            "accuracy": 0.14404761904761904,
+            "cross_entropy": 1.9472345113754272,
+            "forward_seconds": 1.5558458999730647,
+            "examples_per_second": 539.8992278184763,
+            "prediction_counts": [
+              48,
+              60,
+              52,
+              190,
+              357,
+              52,
+              81
+            ],
+            "paired_outcomes": {
+              "both": 10,
+              "add_only": 53,
+              "sub_only": 48,
+              "neither": 309
+            },
+            "weight_source": "D-sham",
+            "compute": {
+              "input_padding_tokens": 0,
+              "recurrent_steps": 840,
+              "candidate_scores": 0,
+              "candidate_compositions": 0,
+              "selected_compositions": 4200,
+              "unselected_candidate_compositions": 0,
+              "stop_scores": 0,
+              "router_action_scores": 0,
+              "parameter_count": 75527,
+              "optimizer_state_bytes": 604216,
+              "peak_allocated_tensor_lower_bound_bytes": 1246524,
+              "peak_estimate_scope": "lower bound from parameters, optimizer tensors, input tensors, and logits; DirectML exposes no peak allocator counter",
+              "estimated_forward_operations": 560824320
+            }
+          }
+        },
+        "generation": {
+          "attempts": 902,
+          "accepted_families": 420,
+          "label_pair_counts": [
+            [
+              0,
+              1,
+              10
+            ],
+            [
+              0,
+              2,
+              10
+            ],
+            [
+              0,
+              3,
+              10
+            ],
+            [
+              0,
+              4,
+              10
+            ],
+            [
+              0,
+              5,
+              10
+            ],
+            [
+              0,
+              6,
+              10
+            ],
+            [
+              1,
+              0,
+              10
+            ],
+            [
+              1,
+              2,
+              10
+            ],
+            [
+              1,
+              3,
+              10
+            ],
+            [
+              1,
+              4,
+              10
+            ],
+            [
+              1,
+              5,
+              10
+            ],
+            [
+              1,
+              6,
+              10
+            ],
+            [
+              2,
+              0,
+              10
+            ],
+            [
+              2,
+              1,
+              10
+            ],
+            [
+              2,
+              3,
+              10
+            ],
+            [
+              2,
+              4,
+              10
+            ],
+            [
+              2,
+              5,
+              10
+            ],
+            [
+              2,
+              6,
+              10
+            ],
+            [
+              3,
+              0,
+              10
+            ],
+            [
+              3,
+              1,
+              10
+            ],
+            [
+              3,
+              2,
+              10
+            ],
+            [
+              3,
+              4,
+              10
+            ],
+            [
+              3,
+              5,
+              10
+            ],
+            [
+              3,
+              6,
+              10
+            ],
+            [
+              4,
+              0,
+              10
+            ],
+            [
+              4,
+              1,
+              10
+            ],
+            [
+              4,
+              2,
+              10
+            ],
+            [
+              4,
+              3,
+              10
+            ],
+            [
+              4,
+              5,
+              10
+            ],
+            [
+              4,
+              6,
+              10
+            ],
+            [
+              5,
+              0,
+              10
+            ],
+            [
+              5,
+              1,
+              10
+            ],
+            [
+              5,
+              2,
+              10
+            ],
+            [
+              5,
+              3,
+              10
+            ],
+            [
+              5,
+              4,
+              10
+            ],
+            [
+              5,
+              6,
+              10
+            ],
+            [
+              6,
+              0,
+              10
+            ],
+            [
+              6,
+              1,
+              10
+            ],
+            [
+              6,
+              2,
+              10
+            ],
+            [
+              6,
+              3,
+              10
+            ],
+            [
+              6,
+              4,
+              10
+            ],
+            [
+              6,
+              5,
+              10
+            ]
+          ],
+          "structural_rejections": 0,
+          "equal_label_rejections": 130,
+          "quota_rejections": 350,
+          "excluded_family_rejections": 0,
+          "duplicate_family_rejections": 2,
+          "fixed_policy_counterexample_rows": {
+            "stop": 840,
+            "left": 840,
+            "right": 840,
+            "add": 420,
+            "sub": 420
+          }
+        },
+        "canaries": {
+          "query_label_counts": {
+            "0": [
+              60,
+              60,
+              60,
+              60,
+              60,
+              60,
+              60
+            ],
+            "1": [
+              60,
+              60,
+              60,
+              60,
+              60,
+              60,
+              60
+            ]
+          },
+          "query_only_lookup_accuracy": 0.14285714285714285,
+          "input_only_lookup_accuracy": 0.5,
+          "input_only_basis": "each unique base input occurs with two unequal labels"
+        }
+      }
+    },
+    "train_evaluation_overlap": 0,
+    "training_family_hash_count": 4393,
+    "evaluation_family_hash_count": 1260,
+    "training_family_hash_digest": "34ae29a13bdcb4716abe32d16428340153a9182925eccaf3b023099250fbbed8",
+    "evaluation_family_hash_digest": "086fdf0ed413b4875e77f82edb2c94751b8233a453ccf281a801390ec186e58f"
+  },
+  "budget": {
+    "parameter_counts": {
+      "A-Q-param": 109383,
+      "A-Q-flop": 89646,
+      "A-recur": 59337,
+      "B-query": 109258,
+      "B-noQ-router": 109258,
+      "B-sham": 109258,
+      "D-true": 75527,
+      "D-sham": 75527
+    },
+    "optimizer_state_bytes": {
+      "A-Q-param": 875064,
+      "A-Q-flop": 717168,
+      "A-recur": 474696,
+      "B-query": 873552,
+      "B-noQ-router": 874064,
+      "B-sham": 873552,
+      "D-true": 604216,
+      "D-sham": 604216
+    },
+    "A-Q-param": {
+      "absolute_parameter_difference": 125,
+      "relative_parameter_difference": 0.0011440809826282743,
+      "status": "matched_within_one_percent"
+    },
+    "A-Q-flop": {
+      "B_full_candidate_forward_operation_estimate": 1143872,
+      "A_forward_operation_estimate": 1144448,
+      "relative_estimate_difference": 0.0005035528450735747,
+      "status": "operation_estimate_only; DirectML exposes no exact FLOP counter"
+    },
+    "A-Q-param_operation_estimate": 1399040,
+    "accounting_scope": "B estimate includes token/position projection, every selected and unselected candidate composition, merge and STOP routing, terminal attention, and classifier; training receipts additionally report synchronized forward/backward/update wall time"
+  },
+  "data_isolation": {
+    "training_unique_base_families": 4393,
+    "training_duplicate_families": 647,
+    "evaluation_unique_base_families": 1260,
+    "overlap": 0
+  },
+  "recovery": {
+    "semantics": "at-least-once",
+    "checkpoint_step": 120,
+    "max_replayed_steps_on_crash": 10
+  },
+  "claim_boundary": "This is calibration-only engineering evidence. It cannot establish a Stage 2 candidate effect, a new training paradigm, novelty, or a formal result.",
+  "final_reason": "evaluation_only_recovery",
+  "runtime_warnings": [],
+  "fallback_observability": {
+    "status": "unknown",
+    "detail": "no public DirectML fallback counter; no Python warnings observed"
+  },
+  "provenance": {
+    "python": {
+      "version": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+      "executable": "C:\\Users\\kei`z\\Documents\\Codex\\dynamic-hierarchy-ai\\.venv-directml\\Scripts\\python.exe"
+    },
+    "platform": "Windows-10-10.0.19045-SP0",
+    "libraries": {
+      "torch": "2.4.1+cpu",
+      "numpy": "2.5.1"
+    },
+    "backend": {
+      "backend": "directml",
+      "device": "privateuseone:0",
+      "device_name": "AMD Radeon RX 9060 XT",
+      "deterministic_algorithms_enabled": false,
+      "determinism_status": "not guaranteed by torch-directml; reproducibility is measured, not assumed",
+      "synchronization_method": "updated model parameter detach().cpu() barrier before timing starts and after the final optimizer write"
+    },
+    "dependencies": {
+      "dynamic-hierarchy-ai": "0.1.0",
+      "filelock": "3.32.2",
+      "fsspec": "2026.7.0",
+      "Jinja2": "3.1.6",
+      "MarkupSafe": "3.0.3",
+      "mpmath": "1.3.0",
+      "networkx": "3.6.1",
+      "numpy": "2.5.1",
+      "pillow": "12.3.0",
+      "pip": "26.2",
+      "psutil": "7.2.2",
+      "setuptools": "83.0.0",
+      "sympy": "1.14.0",
+      "torch": "2.4.1",
+      "torch-directml": "0.2.5.dev240914",
+      "torchvision": "0.19.1",
+      "typing_extensions": "4.16.0"
+    },
+    "determinism": {
+      "deterministic_algorithms": false,
+      "configured_threads": 4,
+      "torch_num_threads": 4,
+      "torch_num_interop_threads": 6
+    },
+    "source_manifest": {
+      "algorithm": "sha256",
+      "manifest_hash": "51d267aee3f2b9bd1359937a939b1d6586dd6437da9951942eedc9c6e8a29c48",
+      "files": {
+        "configs/benchmark-cpu.json": "a8f85ad1b5a78e9c03f2a4c4abb18abd4749f6ec14aa96d2423e72d948958e0e",
+        "configs/benchmark-directml.json": "9f8578326998559fda4cfef536edfe919376192ba99d3ba53c0d75a15bdc7efa",
+        "configs/benchmark-sustained-short-cpu.json": "09968b5b955297d630c17e930712402f89b8b150c2d3c4ee13fe0690932f9a83",
+        "configs/benchmark-sustained-short-directml.json": "3c1f9180323d60557a81b8174e0a9391e997344f3ac039abfe119e0986fe42fd",
+        "configs/benchmark-throughput-long-cpu.json": "1d3f214dee6083c9a6f264a6eb12546f64727f7dc4eff5df5a136447456a29b0",
+        "configs/benchmark-throughput-long-directml.json": "d951138872189ba9316224403f62de4e418eade3400d35cf87d56309b2b0e789",
+        "configs/smoke-directml.json": "b39c679041cc328e5f62d33a9b3f131e27bb7c02a02d7b9a179c70e4f58a4d85",
+        "configs/smoke.json": "c1b4566013642ecc54bf553a6a092ebc641c0f87e67e278f2e63d439a2849853",
+        "configs/stage1-pilot-directml.json": "7e0404cfb597dbab32b1d9fbbafa303611d3d4ad8d1e9de35b72ffff8f43141e",
+        "configs/stage1-revised-formal-directml.json": "5f04569d24c011f4c4b3fef3c88e0c6dcd2689b2f611c68c375084e0dfc372a5",
+        "configs/stage1-revised-foundation-directml.json": "91e14b7124c2e21cb0c8fcd646c69942b379e5797cfe91c61cfe0b5e1d776ed2",
+        "configs/stage1-revised-learning-directml.json": "30d61289faf4695a4b55695fcb23815335b181e47b2a78248001a4d8284223c8",
+        "configs/stage1-revised-literal-candidate-directml.json": "80eb26eb2ee7b113151953002960ea17f7204bce6e6866069c3ca000cf455e43",
+        "configs/stage1-revised-literal-candidate-extended-directml.json": "e337bb48de228c83734ac1bc3a1765a2453e5914686a4f133562149aa788ac1b",
+        "configs/stage1-revised-literal-formal-confirmation-directml.json": "275c6e93aed60104b21e9131280dac16a6d2477e64f915f8894ed4a4b6fc5c9e",
+        "configs/stage1-revised-literal-formal-confirmation-v2-directml.json": "866e9c28bd5ec84422cc5a639341b184d37c0a6e9ee21f09b84602600ffdb8eb",
+        "configs/stage1-revised-literal-formal-confirmation-v3-directml.json": "5f29439a8dd4f4dfb0cdfbc09f4eafd8afbea75c8499471dbef72fd10ba7ceef",
+        "configs/stage1-revised-literal-formal-confirmation-v4-directml.json": "d18d4de2672f46a4d4ee09a90140beb795381483c7ad9a20af9ab6fd017c28b2",
+        "configs/stage1-revised-literal-formal-directml.json": "d07b10829b5d2e5bc14c7bdc1b1966660c9afde2eeed84a80fcfe6774b1b9500",
+        "configs/stage1-revised-literal-posthoc-revalidation-directml.json": "b02e8452b3f50e9faf2f5ab6e650811064a650535775e8c28e62f6ee7ca245c9",
+        "configs/stage1-revised-literal-structural-candidate-directml.json": "afc56697bae534e4bfb9ad0086b0a77cb07d2faa2a3a79ae0ca4e26aa7ba5863",
+        "configs/stage1-revised-smoke-cpu.json": "32cb8480eb0c94413dd80cab3dd47f57f5dcf042ea7bc29d3a9bf5cc020ecb86",
+        "configs/stage1-revised-smoke-directml.json": "692c56acd4cf98d50549be234dbc4f09692b1b6f09f908877f5a6371b961ebe1",
+        "configs/stage1-smoke-cpu.json": "9203af5ad5c499dc6b30474d57482f2f412fe494f77e46d1266ae80c634ab8d4",
+        "configs/stage1-smoke-directml.json": "d8c585dbcc610c090472ef0677569de6c9afcf2cc5f245c3813e33a613fa916b",
+        "configs/stage2-calibration-directml.json": "502381a99b5a4b3870241de1c342c7d504a2dc3c31cd9f2881afd65fc4bf0b44",
+        "configs/stage2-smoke-cpu.json": "375216fd4efaef597ce969ad82b56b7602c99f0fd2773982d79616142bfc03fd",
+        "configs/stage2-smoke-directml.json": "13964ba9fd7fc11888052f5679a0aacd33f4a1023d987ef9dfcf58c08f183ffa",
+        "pyproject.toml": "7e7e357f9373bdae3febe988ee09baafe027fd37c5bd188a78a9ffb5442a1536",
+        "requirements-cpu.lock": "d15502e5d8dea8f743a32fb15b53eca1813a6e30302ee9cf2f17cf8e33738cb9",
+        "requirements-directml.lock": "13fc6c9454244408a24ea8e2c44d9c2df1149e9093f44f30ec0033cfbf243ab1",
+        "scripts/aggregate_stage1_confirmation.py": "9514eae10fb23cdb558c0f8f5c04d9e75025ada50957094c9899a28fd629527d",
+        "scripts/benchmark_stage0.py": "c2535b360c4531ca7aa0a51e2d094e365706952c6d49a34bc1a238fad93a6622",
+        "scripts/check_directml.py": "d3231faca8c155749c1abfd7bf0a20908ce52a50ca617d759c179679d71f9f62",
+        "scripts/check_environment.py": "e46fd04b43e5f93ce86f5eced1cbe0ab6f64c6d6261cfba8b55edf14f4b375e2",
+        "scripts/check_project_text.py": "42755a22608f5cb33529aa8033066b13b6e300d14781eee6afe77b6f9307f65b",
+        "scripts/control_stage1.ps1": "457bde8bc59b7bd96b3aae8b7e394b1247f1e1aee649772804a5994e887b6a28",
+        "scripts/create_stage1_snapshot.py": "981d142e61b7c3fea141f5784280872185e4e5cf7be28da4d4dd4707ab4eace1",
+        "scripts/export_stage1_public_evidence.py": "346c92bb01cb75e741675e38693b7a79183bb709166119a6282f46363e27125d",
+        "scripts/run_stage1_confirmation_sequence.py": "88390942ff2a0e04099b900d02f935e5440194d24358d74f42effdfd29ad3c08",
+        "scripts/run_stage1_confirmation_sequence_v2.py": "a04eafc3edac27ed44f6c8b8b1de4abf721bde7c8defd8cbaee07b6f49c90033",
+        "scripts/run_stage1_confirmation_sequence_v3.py": "4d6bb9061e581421475f6738ec75b69a67ac355bfe6e1e00d586d1ec4d831349",
+        "scripts/run_stage1_confirmation_sequence_v4.py": "23433eed426c12bee48b07a5c8f14c26bf64b77f28d63064d889ce4f1315eeeb",
+        "scripts/run_stage2.py": "7689def5a239863de8c8eba84007f13781856741f33856efe48040c93de37a5e",
+        "scripts/stage1_worker.py": "e5ad1021ccabd01f940cea2d848c4f3f4ce5d63e6e26663b72832d3eafb2189d",
+        "scripts/start_stage1.ps1": "bf2b2060911729508f29d01bc40dafd072d6f28bc6759de3193b4c4cbe240dce",
+        "scripts/train_stage0.py": "e3b327f6824cd5a630e9f800624d62cf5dab8281336d76f70508c7909ef29410",
+        "src/dynamic_hierarchy/__init__.py": "b644b001dc06bbfc1931e5d0b7ab9807fb9dba4555fe746b96a6fd376f391a1e",
+        "src/dynamic_hierarchy/backend.py": "26f38878522ca51fdda53df8267ab7de0741c5a65dba70a052620187bbf633e6",
+        "src/dynamic_hierarchy/config.py": "37664d32ff659e16c538c46946afd9d3ef45fc423a27aa6ab1458b6302e077c4",
+        "src/dynamic_hierarchy/data.py": "54678cb95c4e75a4517b508c35f3d69b74faefaaa8f257c3d94d108b78a12105",
+        "src/dynamic_hierarchy/hierarchy.py": "d7dd69b675d0683e613ff5189853683f625a4bbe5e97723d78fc93fc7670962f",
+        "src/dynamic_hierarchy/model.py": "339690364864c2cc4287efa7629fa64c7b8e08dc3d26a83a9d2c822b2ce45ac1",
+        "src/dynamic_hierarchy/optim.py": "02f09e8e8bdb85b08ed2f8cca36afc7f5faba1ed9c3e209e492f16677141fe2c",
+        "src/dynamic_hierarchy/process_registry.py": "fb516672b7719d1c04fd9c1caba1e8beb620dae7b978b2036a1fb8e3276c5911",
+        "src/dynamic_hierarchy/provenance.py": "e62f28a868ae9e027340c9c82f3e223a98f4095dc6c8117c5e22ae44f3388583",
+        "src/dynamic_hierarchy/reporting.py": "ef06e39e13d684f25de694415a385e7a05e63c5c382fa220f06949a14d26b766",
+        "src/dynamic_hierarchy/resource_guard.py": "56aa32a555942b5e43f1bd0070a9f66f69a443efc96ee35d7a3948d9b421d2fa",
+        "src/dynamic_hierarchy/run_lock.py": "aaa25b0d2cf8faed481dd801af5ae3a352b02680caf1f94f38c472351c30b676",
+        "src/dynamic_hierarchy/snapshot.py": "e0f127711fcedbe75fd6e076c0a07610349a01b3dd9b194e2c1726bd7e659798",
+        "src/dynamic_hierarchy/stage1_campaign.py": "be6273f38dd6f353f7d2c466fab90a64f121e4a6c3cdf56b72769546e8f10acb",
+        "src/dynamic_hierarchy/stage1_config.py": "837922bb856a6d333211a40fd964d8bbdaf9d92feb600c9ca0bb9846a6e6ba0d",
+        "src/dynamic_hierarchy/stage1_confirmation.py": "202c3d0e7d2b2eb977adf843f5cf4ca8ff0fddc7d6ac8d6fae72dcfbeb999a80",
+        "src/dynamic_hierarchy/stage1_data.py": "0acf2c2c054884f1b6a0281d9c37d706b65a3f938fa83e798b5e25563fa0c437",
+        "src/dynamic_hierarchy/stage1_integrity.py": "9762970d38e41693127ea0d354137966974313d6b153c1bec2b60aa5f305785a",
+        "src/dynamic_hierarchy/stage1_runtime.py": "e86cad81eea97ae3292c2b87bae8049ac7fd607f7435336070e96ae024e096b7",
+        "src/dynamic_hierarchy/stage2_config.py": "b60d4c3db6202599a1df47d75c643b9b58ba8334d7c5f0e70927086a262ee574",
+        "src/dynamic_hierarchy/stage2_data.py": "280076ee8451e06cada97012df6e99c56afdce1d543eb196c979fec51366f16c",
+        "src/dynamic_hierarchy/stage2_model.py": "9ed7940eb0c6660b7cb0e436ab5256e9dc58e91c97af1bc96063be0b2bb488fa",
+        "src/dynamic_hierarchy/stage2_runtime.py": "15b6d2f1a8bfcf4d0e242d4476747fa31e45a77ab2181c49420a5b423cc3b78f",
+        "src/dynamic_hierarchy/training.py": "fb72fcd5b786822bc69d1cfa118c75aa90eb76dcc06fbce00cb3f765be23b16b",
+        "tests/test_directml.py": "75399672e7838c5592706dd9c6a7d4e29b638e8cd417bb2ba7d2865cafaa3744",
+        "tests/test_stage0.py": "d45469cb1d471b982270e718d9425fb4c5daadd9985b87267d9db85f3ba7b4a7",
+        "tests/test_stage1.py": "b36c87dd858005628e448079e75d155bd5cfc61f08ecc4e9807665c41618a31b",
+        "tests/test_stage2.py": "7e696f1a0f27e5cc9bac0713df1563e18c2f7583fefcfef799d16ba5c101339c"
+      }
+    }
+  },
+  "completed_at": "2026-08-09T01:36:07.492500+00:00",
+  "evaluation_recovery": {
+    "kind": "evaluation_only_after_structure_telemetry_fix",
+    "training_checkpoint": "runs\\stage2-r2-calibration-directml-821101\\checkpoints\\checkpoint-00000120-final.pt",
+    "optimizer_updates_per_model": 120,
+    "training_weights_updated": false,
+    "original_result": "runs\\stage2-r2-calibration-directml-821101\\result.json",
+    "note": "The original result used a case-mismatched MERGE trace filter. Task metrics and weights were retained; structure metrics were recomputed."
+  }
+}

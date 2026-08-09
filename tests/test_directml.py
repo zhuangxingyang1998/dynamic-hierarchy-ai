@@ -11,6 +11,14 @@ from dynamic_hierarchy.optim import DirectMLCompatibleAdamWCore
 from dynamic_hierarchy.training import train
 from test_stage1 import ROOT, tiny_literal_config, tiny_stage1_config
 from dynamic_hierarchy.stage1_runtime import Stage1Trainer
+from dynamic_hierarchy.stage2_config import (
+    Stage2ModelSpec,
+    Stage2Profile,
+    stage2_config_from_dict,
+)
+from dynamic_hierarchy.stage2_data import Stage2PrecedenceFamilyGenerator
+from dynamic_hierarchy.stage2_model import Stage2MergeClassifier
+from dynamic_hierarchy.stage2_runtime import Stage2Trainer
 
 import tempfile
 from pathlib import Path
@@ -21,6 +29,87 @@ DIRECTML_AVAILABLE = importlib.util.find_spec("torch_directml") is not None
 
 @unittest.skipUnless(DIRECTML_AVAILABLE, "torch-directml is installed only in .venv-directml")
 class DirectMLBackendTests(unittest.TestCase):
+    @staticmethod
+    def _tiny_stage2_directml_config():
+        model = {
+            "vocab_size": 64,
+            "hidden_dim": 8,
+            "heads": 2,
+            "layers": 1,
+            "feedforward_dim": 16,
+            "dropout": 0.0,
+            "temperature": 1.0,
+        }
+        return stage2_config_from_dict(
+            {
+                "device": "directml",
+                "deterministic": False,
+                "optimizer_steps": 2,
+                "cpu_threads": 1,
+                "yield_ms": 0,
+                "model": model,
+                "a_param_model": {**model, "layers": 3},
+                "a_flop_model": {**model, "feedforward_dim": 25},
+                "train_profiles": [
+                    {
+                        "name": "dml_train",
+                        "leaf_count": 3,
+                        "operator_pattern": "-+",
+                        "category": "train",
+                    }
+                ],
+                "evaluation_profiles": [
+                    {
+                        "name": "dml_eval",
+                        "leaf_count": 3,
+                        "operator_pattern": "-+",
+                        "category": "in_distribution",
+                    }
+                ],
+            }
+        )
+
+    def test_directml_stage2_hard_router_backward_runs_on_device(self) -> None:
+        backend = resolve_backend("directml", cpu_threads=1, deterministic=False)
+        batch = Stage2PrecedenceFamilyGenerator(20260809).balanced_block(
+            Stage2Profile("directml", 3, "-+", "train")
+        ).ordinary.to(backend.device)
+        model = Stage2MergeClassifier(
+            Stage2ModelSpec(hidden_dim=8, heads=2, feedforward_dim=16)
+        ).to(backend.device)
+        with torch.no_grad():
+            model.stop_router[-1].weight.zero_()
+            model.stop_router[-1].bias.fill_(-20.0)
+        output = model(batch, policy="learned")
+        loss = torch.nn.functional.cross_entropy(output.logits, batch.labels)
+        loss.backward()
+        backend.synchronize(next(model.parameters()))
+        self.assertEqual(output.logits.device.type, "privateuseone")
+        self.assertGreater(
+            sum(
+                float(parameter.grad.detach().square().sum().cpu().item())
+                for parameter in model.router.parameters()
+                if parameter.grad is not None
+            ),
+            0.0,
+        )
+
+    def test_directml_stage2_checkpoint_restores_optimizer_on_device(self) -> None:
+        config = self._tiny_stage2_directml_config()
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            trainer = Stage2Trainer(config, run_dir)
+            trainer.train_step()
+            checkpoint = trainer.save_checkpoint()
+            restored = Stage2Trainer(config, run_dir)
+            restored.load_checkpoint(checkpoint)
+            restored.train_step()
+            self.assertEqual(restored.global_step, 2)
+            for optimizer in restored.optimizers.values():
+                for state in optimizer.state.values():
+                    self.assertEqual(state["exp_avg"].device.type, "privateuseone")
+                    self.assertEqual(state["exp_avg_sq"].device.type, "privateuseone")
+
     def test_directml_tensor_and_backward(self) -> None:
         backend = resolve_backend("directml", cpu_threads=1, deterministic=False)
         value = torch.tensor([2.0], device=backend.device, requires_grad=True)

@@ -8,7 +8,7 @@
 
 现在已经确认的是：在本项目的合成推理任务中，如果把正确结构提供给模型，它会获得巨大而稳定的优势。
 
-现在还没有确认的是：模型能不能自己发现这个结构。让模型学习何时合并、何时停止，是下一阶段的工作。
+现在还没有确认的是：模型能不能自己发现这个结构。第一次 Stage 2 校准已经让模型尝试学习，但它退化成了立即停止，因此还需要修订实验。
 
 ### 最初想法如何变成实验
 
@@ -152,33 +152,28 @@ D-true 获得的是外部提供的正确结构。因此，它接近 100% 不代�
 | --- | --- |
 | 正确层级结构是否有用？ | 已正式确认 |
 | 优势是否只是递归架构或更多计算造成的？ | D-sham 对照基本排除了这一解释 |
-| 模型能否自己发现合并边界？ | 尚未开始，属于 Stage 2 |
+| 模型能否自己发现合并边界？ | Stage 2 R2 已完成单种子校准，但模型退化为立即停止，尚未证明 |
 | 连续相位能否帮助决定合并时机？ | 尚未验证 |
 | 自主结构能否外推到更长推理链和新树形？ | 未知 |
 | 能否改善真实语言模型？ | 未知 |
 
-### 下一步：Stage 2
+### Stage 2 R2：已经实现，但第一次校准没有学会
 
-Stage 2 将不再向实验模型提供正确结构，而是让模型自己选择相邻节点应当 `MERGE` 还是 `STOP`。
+Stage 2 R2 不再向候选模型提供正确结构。它给同一条无括号表达式提出两种问题：`ADD` 优先还是 `SUB` 优先。问题改变正确的运算顺序、树和答案，因此模型不能只背一棵固定树。
 
-计划中的核心比较是：
+R2 同时运行普通 Transformer、参数匹配和运算量估算匹配基线、无合并结构的共享递归、查询盲路由、查询置换 sham、五种固定策略、候选动态路由、D-true 和 D-sham，共 13 个控制。硬路由的前向路径只能使用被选中的节点，未选候选只参与梯度估计。
 
-```text
-A：普通 Transformer
-B：使用普通门控学习 MERGE/STOP
-C：在 B 的基础上加入连续相位
-D-true：继续作为已知正确结构的诊断参照
-```
+2026-08-09 的 DirectML 校准使用种子 `821101`，完成 120 次更新；每个模型看过 10,080 个 query 行。评估包含三个 profile，每个 profile 有 420 个独立 base family、840 个 query 行，训练与评估 family 重叠为零。
 
-我们主要关心：
+| 评估 | 普通 A | B-query | B-noQ | 最佳固定策略 | D-true |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 长度 5，交替运算符 | 14.64% | 15.00% | 14.52% | 16.55% | 14.17% |
+| 长度 8 外推 | 15.00% | 15.60% | 15.48% | 15.60% | 12.62% |
+| 长度 6，留出运算形状 | 15.95% | 15.00% | 14.52% | 15.00% | 16.90% |
 
-```text
-B > A       学到的动态结构确实有帮助
-C > B       连续相位提供了额外价值
-B/C 接近 D  自主发现开始接近正确结构参照
-```
+七分类随机水平是 14.29%。更关键的是，B-query 在三个评估中都对 100% 样本立即执行 `STOP`，轨迹与 F-stop 完全相同，正确树率为 0。A、A-recur、D-true 和 D-sham 也都仍接近随机水平。因此这不是“动态结构无效”的证据，而是一次明确的校准失败：任务学习前提尚未建立，候选路由又走进了最便宜的停止解。
 
-还必须检查 B/C 有没有退化成“全部合并”或“完全不合并”，并限制节点数、递归步数和计算预算。真正有意义的成功需要同时出现在普通测试、长度或深度外推、以及未见结构上。
+R3 不会直接增加种子或引入连续相位。它必须先设置学习可行性门，证明 A 或 D-true 至少能稳定学会当前任务；随后在这个必须归约到根的 benchmark 中移除候选 B 的 `STOP` 动作，只研究 query 是否能改变有效的 `MERGE` 顺序。可变且有用的停止需要另建任务。
 
 ### 对当前主流推理的意义
 
@@ -186,7 +181,7 @@ B/C 接近 D  自主发现开始接近正确结构参照
 
 它的研究价值在于确认了一项必要前提：在一个受控任务中，正确的层级组织确实比平坦输入和错误结构更有价值。如果 Stage 1 没有通过，就没有充分理由继续投入自主结构学习；现在这条研究路线获得了进入下一实验阶段的依据。
 
-只有 Stage 2 证明模型可以稳定地自己发现结构，后续才值得测试长上下文、自然语言、可变计算深度和真实推理任务。
+Stage 2 R2 的实现和负校准缩小了问题范围，但没有改变对主流推理的结论。只有后续模型稳定学会 query-dependent 合并，并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
 
 ### 继续阅读
 
@@ -194,14 +189,17 @@ B/C 接近 D  自主发现开始接近正确结构参照
 - Stage 1 的实验设计：[stage1-design.md](docs/stage1-design.md)
 - Stage 1 正式结果：[stage1-formal-v4-confirmation-result-20260731.md](docs/stage1-formal-v4-confirmation-result-20260731.md)
 - 可公开复核的证据包：[evidence/stage1-formal-v4/README.md](evidence/stage1-formal-v4/README.md)
+- Stage 2 R2 施工包：[stage2-construction-packet-r2.md](docs/stage2-construction-packet-r2.md)
+- Stage 2 R2 校准结果：[stage2-r2-calibration-result-20260809.md](docs/stage2-r2-calibration-result-20260809.md)
+- Stage 2 R2 公开证据：[evidence/stage2-r2-calibration/README.md](evidence/stage2-r2-calibration/README.md)
 
 最简洁而准确的当前结论是：
 
-> 我们已经证明“正确结构值得学习”，但还没有证明“模型能够自己学会结构”。
+> 我们已经证明“正确结构值得学习”；第一次自主结构校准则退化为立即停止，因此“模型能够自己学会结构”仍未证明。
 
 ## Technical Reference
 
-This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham; it does not claim that a dynamic hierarchy has been learned.
+This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but its first calibration collapsed to immediate STOP and does not establish learned hierarchy.
 
 ## Status
 
@@ -215,13 +213,15 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - Prime-modulus algebraic balancing, skew/balanced/branched shapes, canonical shape IDs, and content-overlap auditing.
 - Privileged D-true and source-permuted D-sham diagnostics that receive no targets, binding values, rejection metadata, or intermediate arithmetic values.
 - Canonical campaign v4 formally confirmed a fixed true-structure diagnostic advantage across eight independent training seeds; its exact aggregate unblocks starting Stage 2.
+- Stage 2 R2 implements paired precedence queries, hard adjacent merge routing, adaptive recurrence, all 13 mandatory controls, family-level isolation, checkpoint recovery, and complete common compute receipts on CPU and DirectML.
+- The first 120-step DirectML calibration completed but B-query collapsed to immediate STOP on every evaluation row; all task models remained near chance, so the result is calibration-inconclusive.
 
 **Candidate hypotheses, not results**
 
 - Contextual interaction plus continuous position features may help distinguish repeated values in different roles.
 - Learned dynamic hierarchy, shared recursive merging, and phase-controlled decisions may improve extrapolation.
 - No experiment in this repository establishes learned dynamic hierarchy or autonomous boundary discovery.
-- Learned `MERGE/STOP` control is authorized by the Stage 1 aggregate but remains unstarted Stage 2 work.
+- Stage 2 R2 does not establish learned `MERGE/STOP`; its first calibration observed an all-STOP collapse.
 
 **Backend boundary**
 
@@ -241,6 +241,7 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe scripts/check_environment.py
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv\Scripts\python.exe scripts/train_stage0.py --config configs/smoke.json
+.\.venv\Scripts\python.exe scripts/run_stage2.py --config configs/stage2-smoke-cpu.json
 .\.venv\Scripts\python.exe scripts/check_project_text.py
 ```
 
@@ -256,6 +257,7 @@ py -3.12 -m venv .venv-directml
 .\.venv-directml\Scripts\python.exe scripts/check_directml.py
 .\.venv-directml\Scripts\python.exe -m unittest discover -s tests -v
 .\.venv-directml\Scripts\python.exe scripts/train_stage0.py --config configs/smoke-directml.json
+.\.venv-directml\Scripts\python.exe scripts/run_stage2.py --config configs/stage2-smoke-directml.json
 ```
 
 ## Benchmark
@@ -513,10 +515,10 @@ Each run JSON records its config, per-task/per-scale counts, parameter count, sy
 
 ## Layout
 
-- `src/dynamic_hierarchy/`: generators, A/D models, hierarchy-interface placeholder, and Stage 0/1 runtimes.
-- `configs/`: CPU/DirectML smoke, learning-gate, formal-plan, and paired benchmark configs.
+- `src/dynamic_hierarchy/`: generators, A/D/B models, hierarchy controls, and Stage 0/1/2 runtimes.
+- `configs/`: CPU/DirectML smoke, learning-gate, formal-plan, and paired Stage 2 configs.
 - `scripts/`: environment, training, repeated benchmark, snapshot, worker, and control entry points.
-- `tests/`: focused Stage 0/1 CPU and optional DirectML checks.
+- `tests/`: focused Stage 0/1/2 CPU and optional DirectML checks.
 - `evidence/`: publication-safe formal aggregates and per-seed result records.
 - `docs/research-protocol.md`: byte-for-byte copy of the supplied research protocol.
 - `docs/development-log.md`: commands, outcomes, and known blocks.

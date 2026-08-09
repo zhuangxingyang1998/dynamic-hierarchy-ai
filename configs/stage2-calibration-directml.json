@@ -1,0 +1,49 @@
+{
+  "revision": "stage2-r2",
+  "run_kind": "calibration_only",
+  "seed": 821101,
+  "device": "directml",
+  "deterministic": false,
+  "cpu_threads": 4,
+  "optimizer_steps": 120,
+  "learning_rate": 0.001,
+  "families_per_stratum": 42,
+  "max_generation_attempts_per_family": 512,
+  "checkpoint_steps": 10,
+  "evaluation_blocks": 10,
+  "time_budget_minutes": 30,
+  "yield_ms": 2,
+  "cpu_pause_percent": 90,
+  "cpu_resume_percent": 75,
+  "ram_pause_gb": 4,
+  "ram_resume_gb": 6,
+  "pressure_samples": 3,
+  "recovery_samples": 2,
+  "model": {
+    "vocab_size": 64,
+    "hidden_dim": 64,
+    "heads": 4,
+    "layers": 1,
+    "feedforward_dim": 128,
+    "dropout": 0.0,
+    "temperature": 1.0
+  },
+  "a_param_model": {
+    "vocab_size": 64,
+    "hidden_dim": 64,
+    "heads": 4,
+    "layers": 3,
+    "feedforward_dim": 128,
+    "dropout": 0.0,
+    "temperature": 1.0
+  },
+  "a_flop_model": {
+    "vocab_size": 64,
+    "hidden_dim": 64,
+    "heads": 4,
+    "layers": 3,
+    "feedforward_dim": 77,
+    "dropout": 0.0,
+    "temperature": 1.0
+  }
+}

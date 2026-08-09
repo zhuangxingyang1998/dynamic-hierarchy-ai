@@ -1,0 +1,110 @@
+{
+  "revision": "stage2-r2",
+  "run_kind": "calibration_only",
+  "seed": 821101,
+  "device": "directml",
+  "deterministic": false,
+  "cpu_threads": 4,
+  "optimizer_steps": 120,
+  "learning_rate": 0.001,
+  "families_per_stratum": 42,
+  "max_generation_attempts_per_family": 512,
+  "checkpoint_steps": 10,
+  "evaluation_blocks": 10,
+  "time_budget_minutes": 30.0,
+  "yield_ms": 2,
+  "cpu_pause_percent": 90.0,
+  "cpu_resume_percent": 75.0,
+  "ram_pause_gb": 4.0,
+  "ram_resume_gb": 6.0,
+  "pressure_samples": 3,
+  "recovery_samples": 2,
+  "controls": [
+    "A-Q-param",
+    "A-Q-flop",
+    "A-recur",
+    "B-query",
+    "B-noQ-router",
+    "B-sham",
+    "F-stop",
+    "F-left",
+    "F-right",
+    "F-add",
+    "F-sub",
+    "D-true",
+    "D-sham"
+  ],
+  "train_profiles": [
+    {
+      "name": "train_n4_alternating",
+      "leaf_count": 4,
+      "operator_pattern": "-+-",
+      "category": "train",
+      "shape_partition": "train"
+    },
+    {
+      "name": "train_n5_run",
+      "leaf_count": 5,
+      "operator_pattern": "--++",
+      "category": "train",
+      "shape_partition": "train"
+    },
+    {
+      "name": "train_n6_alternating",
+      "leaf_count": 6,
+      "operator_pattern": "-+-+-",
+      "category": "train",
+      "shape_partition": "train"
+    }
+  ],
+  "evaluation_profiles": [
+    {
+      "name": "id_n5_alternating",
+      "leaf_count": 5,
+      "operator_pattern": "-+-+",
+      "category": "in_distribution",
+      "shape_partition": "train"
+    },
+    {
+      "name": "length_n8_alternating",
+      "leaf_count": 8,
+      "operator_pattern": "-+-+-+-",
+      "category": "length_extrapolation",
+      "shape_partition": "heldout"
+    },
+    {
+      "name": "topology_n6_runs",
+      "leaf_count": 6,
+      "operator_pattern": "--+--",
+      "category": "topology_extrapolation",
+      "shape_partition": "heldout"
+    }
+  ],
+  "model": {
+    "vocab_size": 64,
+    "hidden_dim": 64,
+    "heads": 4,
+    "layers": 1,
+    "feedforward_dim": 128,
+    "dropout": 0.0,
+    "temperature": 1.0
+  },
+  "a_param_model": {
+    "vocab_size": 64,
+    "hidden_dim": 64,
+    "heads": 4,
+    "layers": 3,
+    "feedforward_dim": 128,
+    "dropout": 0.0,
+    "temperature": 1.0
+  },
+  "a_flop_model": {
+    "vocab_size": 64,
+    "hidden_dim": 64,
+    "heads": 4,
+    "layers": 3,
+    "feedforward_dim": 77,
+    "dropout": 0.0,
+    "temperature": 1.0
+  }
+}

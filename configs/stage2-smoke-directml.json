@@ -1,0 +1,58 @@
+{
+  "revision": "stage2-r2",
+  "run_kind": "smoke",
+  "seed": 821101,
+  "device": "directml",
+  "deterministic": false,
+  "cpu_threads": 4,
+  "optimizer_steps": 1,
+  "learning_rate": 0.001,
+  "families_per_stratum": 42,
+  "checkpoint_steps": 1,
+  "evaluation_blocks": 1,
+  "time_budget_minutes": 5,
+  "yield_ms": 1,
+  "train_profiles": [
+    {
+      "name": "smoke_train_n4",
+      "leaf_count": 4,
+      "operator_pattern": "-+-",
+      "category": "train"
+    }
+  ],
+  "evaluation_profiles": [
+    {
+      "name": "smoke_eval_n5",
+      "leaf_count": 5,
+      "operator_pattern": "-+-+",
+      "category": "in_distribution"
+    }
+  ],
+  "model": {
+    "vocab_size": 64,
+    "hidden_dim": 16,
+    "heads": 4,
+    "layers": 1,
+    "feedforward_dim": 32,
+    "dropout": 0.0,
+    "temperature": 1.0
+  },
+  "a_param_model": {
+    "vocab_size": 64,
+    "hidden_dim": 16,
+    "heads": 4,
+    "layers": 3,
+    "feedforward_dim": 32,
+    "dropout": 0.0,
+    "temperature": 1.0
+  },
+  "a_flop_model": {
+    "vocab_size": 64,
+    "hidden_dim": 16,
+    "heads": 4,
+    "layers": 1,
+    "feedforward_dim": 61,
+    "dropout": 0.0,
+    "temperature": 1.0
+  }
+}
