@@ -1,4 +1,4 @@
-"""Run a bounded Stage 2 R2/R3 smoke or calibration-only experiment."""
+"""Run a bounded Stage 2 R2/R3/R4 smoke or calibration-only experiment."""
 
 from __future__ import annotations
 
@@ -54,6 +54,8 @@ def main() -> int:
         parser.error("--reevaluate-only requires --resume")
 
     config = load_stage2_config(args.config)
+    if args.reevaluate_only and config.revision == "stage2-r4":
+        parser.error("Stage 2 R4 uses a one-shot validation/reserve ledger and cannot be reevaluated")
     run_dir = args.run_dir or _default_run_dir(args.config, args.output_root)
     run_dir.mkdir(parents=True, exist_ok=True)
     _freeze_config(run_dir, config.to_dict())
@@ -193,7 +195,11 @@ def main() -> int:
         except Exception as error:
             failure = {
                 "schema_version": 1,
-                "packet": "DH-S2-R3" if config.revision == "stage2-r3" else "DH-S2-R2",
+                "packet": {
+                    "stage2-r2": "DH-S2-R2",
+                    "stage2-r3": "DH-S2-R3",
+                    "stage2-r4": "DH-S2-R4",
+                }[config.revision],
                 "revision": config.revision,
                 "phase": config.phase,
                 "state": "implementation_invalid",

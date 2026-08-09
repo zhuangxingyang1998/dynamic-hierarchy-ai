@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import unittest
 from dataclasses import fields
 from pathlib import Path
@@ -132,6 +133,24 @@ class Stage2DataTests(unittest.TestCase):
             "routing_min_ood_advantage",
         ):
             self.assertNotIn(key, serialized)
+        self.assertTrue(
+            all("blocks" not in profile for profile in serialized["train_profiles"])
+        )
+        self.assertTrue(
+            all("blocks" not in profile for profile in serialized["evaluation_profiles"])
+        )
+
+    def test_r3_omits_and_r4_serializes_profile_block_counts(self) -> None:
+        r3 = stage2_config_from_dict({"revision": "stage2-r3"}).to_dict()
+        self.assertTrue(all("blocks" not in item for item in r3["train_profiles"]))
+        self.assertTrue(all("blocks" not in item for item in r3["evaluation_profiles"]))
+
+        r4 = stage2_config_from_dict({"revision": "stage2-r4"}).to_dict()
+        self.assertEqual([item["blocks"] for item in r4["train_profiles"]], [5, 35])
+        self.assertEqual(
+            [item["blocks"] for item in r4["evaluation_profiles"]],
+            [1, 7, 1, 7],
+        )
 
     def test_profile_rejects_precedence_insensitive_pattern(self) -> None:
         with self.assertRaisesRegex(ValueError, "precedence-insensitive"):
@@ -466,6 +485,29 @@ class Stage2RuntimeTests(unittest.TestCase):
             }
         )
 
+    @staticmethod
+    def _r4_feasibility_config():
+        model = {
+            "vocab_size": 64,
+            "hidden_dim": 8,
+            "heads": 2,
+            "layers": 1,
+            "feedforward_dim": 16,
+            "dropout": 0.0,
+            "temperature": 1.0,
+        }
+        return stage2_config_from_dict(
+            {
+                "revision": "stage2-r4",
+                "phase": "feasibility",
+                "optimizer_steps": 3,
+                "cpu_threads": 1,
+                "yield_ms": 0,
+                "model": model,
+                "a_param_model": {**model, "layers": 3},
+            }
+        )
+
     def test_complete_control_matrix_evaluates_without_family_leakage(self) -> None:
         with TemporaryDirectory() as temporary:
             trainer = Stage2Trainer(self._config(), Path(temporary))
@@ -514,6 +556,7 @@ class Stage2RuntimeTests(unittest.TestCase):
             self.assertEqual(set(original.fixed_train_pools), {"r3_train_n3", "r3_train_n4"})
             self.assertEqual(len(original.training_family_hashes), 84)
             first = original.fixed_train_pool_evidence
+            self.assertTrue(all("profile" not in item for item in first.values()))
             original.train_step()
             self.assertEqual(original.training_family_exposures, 42)
             self.assertEqual(original.training_repeated_family_exposures, 0)
@@ -582,6 +625,192 @@ class Stage2RuntimeTests(unittest.TestCase):
         malformed = trainer._feasibility_gate()
         self.assertFalse(malformed["passed"])
 
+    def test_r4_fixed_partition_schedule_and_one_epoch_are_exact(self) -> None:
+        with TemporaryDirectory() as temporary:
+            trainer = Stage2Trainer(self._r4_feasibility_config(), Path(temporary))
+            self.assertEqual(len(trainer.fixed_train_pools), 40)
+            self.assertEqual(len(trainer.fixed_train_schedule), 40)
+            self.assertEqual(len(set(trainer.fixed_train_schedule)), 40)
+            self.assertEqual(len(trainer.training_family_hashes), 1680)
+            profile_blocks = {"r4_train_n3": 0, "r4_train_n4": 0}
+            for generated in trainer.fixed_train_pools.values():
+                profile_blocks[generated.ordinary.profile_name] += 1
+                self.assertEqual(generated.generation.accepted_families, 42)
+                self.assertEqual(len(generated.ordinary.query_row_hashes), 84)
+                self.assertTrue(
+                    all(count == 1 for _, _, count in generated.generation.label_pair_counts)
+                )
+            self.assertEqual(profile_blocks, {"r4_train_n3": 5, "r4_train_n4": 35})
+
+            for step in range(40):
+                trainer.global_step = step
+                trainer._training_batch_for_step()
+            self.assertEqual(trainer.training_family_exposures, 1680)
+            self.assertEqual(trainer.training_repeated_family_exposures, 0)
+            self.assertEqual(set(trainer.training_family_exposure_counts.values()), {1})
+
+    def test_r4_checkpoint_restores_schedule_position_and_exposure_counts(self) -> None:
+        with TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            original = Stage2Trainer(self._r4_feasibility_config(), run_dir)
+            original.train_step()
+            checkpoint = original.save_checkpoint()
+            restored = Stage2Trainer(self._r4_feasibility_config(), run_dir)
+            restored.load_checkpoint(checkpoint)
+            self.assertEqual(restored.fixed_train_schedule, original.fixed_train_schedule)
+            self.assertEqual(
+                restored.training_family_exposure_counts,
+                original.training_family_exposure_counts,
+            )
+            original_losses = original.train_step()
+            restored_losses = restored.train_step()
+            for name in original_losses:
+                self.assertAlmostEqual(original_losses[name], restored_losses[name], places=6)
+            payload = torch.load(checkpoint, map_location="cpu", weights_only=False)
+            first_hash = next(iter(payload["training_family_exposure_counts"]))
+            payload["training_family_exposure_counts"][first_hash] += 1
+            tampered = run_dir / "tampered.pt"
+            torch.save(payload, tampered)
+            with self.assertRaisesRegex(RuntimeError, "exposure counts"):
+                restored.load_checkpoint(tampered)
+
+    @staticmethod
+    def _synthetic_feasibility_profile(generated, *, passing: bool):
+        accuracy = 0.75 if passing else 0.25
+        cross_entropy = 1.0 if passing else 2.0
+        controls = {
+            name: {
+                "accuracy": accuracy,
+                "cross_entropy": cross_entropy,
+                "prediction_counts": [1] * 7,
+            }
+            for name in ("A-Q-param", "B-oracle", "D-true")
+        }
+        controls["B-oracle"].update(
+            {
+                "selection_path": "forced_selected_only",
+                "structure": {
+                    "exact_tree_rate": 1.0,
+                    "edge_f1": 1.0,
+                    "full_reduction_rate": 1.0,
+                    "immediate_stop_rate": 0.0,
+                    "early_stop_rate": 0.0,
+                },
+                "compute": {
+                    "stop_scores": 0,
+                    "candidate_compositions": 1,
+                    "selected_compositions": 1,
+                    "unselected_candidate_compositions": 0,
+                },
+            }
+        )
+        return {
+            "profile": generated.ordinary.profile_name,
+            "controls": controls,
+        }
+
+    def test_r4_validation_failure_keeps_reserve_unopened(self) -> None:
+        with TemporaryDirectory() as temporary:
+            trainer = Stage2Trainer(self._r4_feasibility_config(), Path(temporary))
+            evaluated: list[str] = []
+
+            def failing(generated):
+                evaluated.append(generated.ordinary.profile_name)
+                return self._synthetic_feasibility_profile(generated, passing=False)
+
+            trainer._evaluate_profile = failing
+            result = trainer.evaluate()
+            self.assertEqual(evaluated, ["r4_validation_n3", "r4_validation_n4"])
+            self.assertFalse(result["reserve_opened"])
+            self.assertEqual(result["reserve_family_hash_count"], 0)
+            self.assertEqual(len(trainer.evaluation_family_hashes), 336)
+            self.assertFalse(result["gate"]["passed"])
+            repeated = trainer.evaluate()
+            self.assertEqual(
+                json.loads(json.dumps(repeated)), json.loads(json.dumps(result))
+            )
+            self.assertEqual(evaluated, ["r4_validation_n3", "r4_validation_n4"])
+
+    def test_r4_passing_validation_opens_complete_disjoint_reserve(self) -> None:
+        with TemporaryDirectory() as temporary:
+            trainer = Stage2Trainer(self._r4_feasibility_config(), Path(temporary))
+            evaluated: list[str] = []
+
+            def passing(generated):
+                evaluated.append(generated.ordinary.profile_name)
+                return self._synthetic_feasibility_profile(generated, passing=True)
+
+            trainer._evaluate_profile = passing
+            result = trainer.evaluate()
+            self.assertEqual(
+                evaluated,
+                [
+                    "r4_validation_n3",
+                    "r4_validation_n4",
+                    "r4_reserve_n3",
+                    "r4_reserve_n4",
+                ],
+            )
+            self.assertTrue(result["reserve_opened"])
+            self.assertEqual(result["validation_family_hash_count"], 336)
+            self.assertEqual(result["reserve_family_hash_count"], 336)
+            self.assertEqual(len(trainer.evaluation_family_hashes), 672)
+            self.assertEqual(
+                len(
+                    trainer.training_family_hashes
+                    | trainer.validation_family_hashes
+                    | trainer.reserve_family_hashes
+                ),
+                2352,
+            )
+            self.assertTrue(result["gate"]["passed"])
+            repeated = trainer.evaluate()
+            self.assertEqual(
+                json.loads(json.dumps(repeated)), json.loads(json.dumps(result))
+            )
+            self.assertEqual(len(evaluated), 4)
+
+    def test_r4_interrupted_open_reserve_cannot_be_replayed(self) -> None:
+        with TemporaryDirectory() as temporary:
+            trainer = Stage2Trainer(self._r4_feasibility_config(), Path(temporary))
+            trainer.reserve_opened = True
+            trainer._write_r4_evaluation_ledger("reserve_opened")
+            with self.assertRaisesRegex(RuntimeError, "cannot be replayed"):
+                trainer.evaluate()
+
+    def test_r4_gate_requires_causal_oracle_structure_receipts(self) -> None:
+        with TemporaryDirectory() as temporary:
+            trainer = Stage2Trainer(self._r4_feasibility_config(), Path(temporary))
+            generated = next(iter(trainer.fixed_train_pools.values()))
+            profile_result = self._synthetic_feasibility_profile(
+                generated, passing=True
+            )
+            profile_result["controls"]["B-oracle"]["structure"][
+                "exact_tree_rate"
+            ] = 0.0
+            trainer.latest_evaluation = {
+                "profiles": {
+                    profile.name: {
+                        **profile_result,
+                        "profile": profile.name,
+                    }
+                    for profile in trainer.config.evaluation_profiles
+                    if profile.category == "validation"
+                }
+            }
+            validation_profiles = tuple(
+                profile
+                for profile in trainer.config.evaluation_profiles
+                if profile.category == "validation"
+            )
+            gate = trainer._feasibility_gate(validation_profiles)
+            self.assertFalse(gate["passed"])
+            self.assertFalse(
+                gate["profiles"]["r4_validation_n3"]["B-oracle"][
+                    "causal_structure_valid"
+                ]
+            )
+
     def test_r3_thresholds_are_frozen(self) -> None:
         with self.assertRaisesRegex(ValueError, "frozen"):
             stage2_config_from_dict(
@@ -589,6 +818,52 @@ class Stage2RuntimeTests(unittest.TestCase):
                     "revision": "stage2-r3",
                     "phase": "feasibility",
                     "feasibility_min_accuracy": 0.49,
+                }
+            )
+
+    def test_r4_calibration_contract_and_thresholds_are_frozen(self) -> None:
+        with self.assertRaisesRegex(ValueError, "exactly 600"):
+            stage2_config_from_dict(
+                {
+                    "revision": "stage2-r4",
+                    "run_kind": "calibration_only",
+                    "optimizer_steps": 599,
+                }
+            )
+        with self.assertRaisesRegex(ValueError, "frozen"):
+            stage2_config_from_dict(
+                {
+                    "revision": "stage2-r4",
+                    "feasibility_max_cross_entropy": 1.51,
+                }
+            )
+        with self.assertRaisesRegex(ValueError, "DirectML"):
+            stage2_config_from_dict(
+                {
+                    "revision": "stage2-r4",
+                    "run_kind": "calibration_only",
+                    "seed": 821401,
+                    "optimizer_steps": 600,
+                    "device": "cpu",
+                    "deterministic": True,
+                    "checkpoint_steps": 25,
+                    "time_budget_minutes": 30,
+                    "yield_ms": 2,
+                }
+            )
+        with self.assertRaisesRegex(ValueError, "learning rate"):
+            stage2_config_from_dict(
+                {
+                    "revision": "stage2-r4",
+                    "run_kind": "calibration_only",
+                    "seed": 821401,
+                    "optimizer_steps": 600,
+                    "device": "directml",
+                    "deterministic": False,
+                    "learning_rate": 0.123,
+                    "checkpoint_steps": 25,
+                    "time_budget_minutes": 30,
+                    "yield_ms": 2,
                 }
             )
 

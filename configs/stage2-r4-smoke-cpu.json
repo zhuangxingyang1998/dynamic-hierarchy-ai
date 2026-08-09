@@ -1,0 +1,40 @@
+{
+  "revision": "stage2-r4",
+  "phase": "feasibility",
+  "run_kind": "smoke",
+  "seed": 821401,
+  "device": "cpu",
+  "deterministic": true,
+  "cpu_threads": 4,
+  "optimizer_steps": 1,
+  "learning_rate": 0.001,
+  "families_per_stratum": 42,
+  "max_generation_attempts_per_family": 512,
+  "checkpoint_steps": 1,
+  "evaluation_blocks": 1,
+  "time_budget_minutes": 5,
+  "yield_ms": 0,
+  "controls": [
+    "A-Q-param",
+    "B-oracle",
+    "D-true"
+  ],
+  "model": {
+    "vocab_size": 64,
+    "hidden_dim": 16,
+    "heads": 4,
+    "layers": 1,
+    "feedforward_dim": 32,
+    "dropout": 0.0,
+    "temperature": 1.0
+  },
+  "a_param_model": {
+    "vocab_size": 64,
+    "hidden_dim": 16,
+    "heads": 4,
+    "layers": 3,
+    "feedforward_dim": 32,
+    "dropout": 0.0,
+    "temperature": 1.0
+  }
+}

@@ -94,6 +94,31 @@ class DirectMLBackendTests(unittest.TestCase):
             }
         )
 
+    @staticmethod
+    def _tiny_stage2_r4_directml_config():
+        model = {
+            "vocab_size": 64,
+            "hidden_dim": 8,
+            "heads": 2,
+            "layers": 1,
+            "feedforward_dim": 16,
+            "dropout": 0.0,
+            "temperature": 1.0,
+        }
+        return stage2_config_from_dict(
+            {
+                "revision": "stage2-r4",
+                "phase": "feasibility",
+                "device": "directml",
+                "deterministic": False,
+                "optimizer_steps": 2,
+                "cpu_threads": 1,
+                "yield_ms": 0,
+                "model": model,
+                "a_param_model": {**model, "layers": 3},
+            }
+        )
+
     def test_directml_stage2_hard_router_backward_runs_on_device(self) -> None:
         backend = resolve_backend("directml", cpu_threads=1, deterministic=False)
         batch = Stage2PrecedenceFamilyGenerator(20260809).balanced_block(
@@ -171,6 +196,24 @@ class DirectMLBackendTests(unittest.TestCase):
             restored.load_checkpoint(checkpoint)
             restored.train_step()
             self.assertEqual(restored.global_step, 2)
+            for optimizer in restored.optimizers.values():
+                for state in optimizer.state.values():
+                    self.assertEqual(state["exp_avg"].device.type, "privateuseone")
+                    self.assertEqual(state["exp_avg_sq"].device.type, "privateuseone")
+
+    def test_directml_stage2_r4_checkpoint_restores_schedule_on_device(self) -> None:
+        config = self._tiny_stage2_r4_directml_config()
+        with tempfile.TemporaryDirectory() as temporary:
+            run_dir = Path(temporary)
+            trainer = Stage2Trainer(config, run_dir)
+            trainer.train_step()
+            checkpoint = trainer.save_checkpoint()
+            restored = Stage2Trainer(config, run_dir)
+            restored.load_checkpoint(checkpoint)
+            restored.train_step()
+            self.assertEqual(restored.global_step, 2)
+            self.assertEqual(restored.fixed_train_schedule, trainer.fixed_train_schedule)
+            self.assertEqual(len(restored.training_family_hashes), 1680)
             for optimizer in restored.optimizers.values():
                 for state in optimizer.state.values():
                     self.assertEqual(state["exp_avg"].device.type, "privateuseone")

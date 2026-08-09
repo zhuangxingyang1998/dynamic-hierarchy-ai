@@ -1,0 +1,80 @@
+{
+  "revision": "stage2-r4",
+  "phase": "feasibility",
+  "run_kind": "calibration_only",
+  "seed": 821401,
+  "device": "directml",
+  "deterministic": false,
+  "cpu_threads": 4,
+  "optimizer_steps": 600,
+  "learning_rate": 0.001,
+  "families_per_stratum": 42,
+  "max_generation_attempts_per_family": 512,
+  "checkpoint_steps": 25,
+  "evaluation_blocks": 1,
+  "time_budget_minutes": 30,
+  "yield_ms": 2,
+  "cpu_pause_percent": 90,
+  "cpu_resume_percent": 75,
+  "ram_pause_gb": 4,
+  "ram_resume_gb": 6,
+  "pressure_samples": 3,
+  "recovery_samples": 2,
+  "controls": [
+    "A-Q-param",
+    "B-oracle",
+    "D-true"
+  ],
+  "train_profiles": [
+    {
+      "name": "r4_train_n3",
+      "leaf_count": 3,
+      "operator_pattern": "-+",
+      "category": "train",
+      "shape_partition": "train",
+      "blocks": 5
+    },
+    {
+      "name": "r4_train_n4",
+      "leaf_count": 4,
+      "operator_pattern": "-+-",
+      "category": "train",
+      "shape_partition": "train",
+      "blocks": 35
+    }
+  ],
+  "evaluation_profiles": [
+    {
+      "name": "r4_validation_n3",
+      "leaf_count": 3,
+      "operator_pattern": "-+",
+      "category": "validation",
+      "shape_partition": "heldout",
+      "blocks": 1
+    },
+    {
+      "name": "r4_validation_n4",
+      "leaf_count": 4,
+      "operator_pattern": "-+-",
+      "category": "validation",
+      "shape_partition": "heldout",
+      "blocks": 7
+    },
+    {
+      "name": "r4_reserve_n3",
+      "leaf_count": 3,
+      "operator_pattern": "-+",
+      "category": "final_reserve",
+      "shape_partition": "heldout",
+      "blocks": 1
+    },
+    {
+      "name": "r4_reserve_n4",
+      "leaf_count": 4,
+      "operator_pattern": "-+-",
+      "category": "final_reserve",
+      "shape_partition": "heldout",
+      "blocks": 7
+    }
+  ]
+}

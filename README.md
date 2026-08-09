@@ -8,7 +8,7 @@
 
 现在已经确认的是：在本项目的合成推理任务中，如果把正确结构提供给模型，它会获得巨大而稳定的优势。
 
-现在还没有确认的是：模型能不能自己发现这个结构。Stage 2 R2 的候选模型退化成了立即停止；R3 移除这个逃避路径并直接提供正确合并顺序后，模型仍只学会固定训练池，没有推广到未见表达式。因此问题目前卡在“基础运算能否泛化”，还没有进入自主结构发现的有效检验。
+现在还没有确认的是：模型能不能自己发现这个结构。Stage 2 R2 的候选模型退化成了立即停止；R3 直接提供正确合并顺序后只记住了小训练池；R4 把独立训练 family 扩大 20 倍后，三种模型又都没有学会基础模七运算。因此问题目前卡在“组合运算为什么没有泛化”，还没有进入自主结构发现的有效检验。
 
 ### 最初想法如何变成实验
 
@@ -152,7 +152,7 @@ D-true 获得的是外部提供的正确结构。因此，它接近 100% 不代�
 | --- | --- |
 | 正确层级结构是否有用？ | 已正式确认 |
 | 优势是否只是递归架构或更多计算造成的？ | D-sham 对照基本排除了这一解释 |
-| 模型能否自己发现合并边界？ | 尚未证明；R3 可行性门失败，路由实验已按协议暂停 |
+| 模型能否自己发现合并边界？ | 尚未证明；R4 可行性门失败，路由实验仍暂停 |
 | 连续相位能否帮助决定合并时机？ | 尚未验证 |
 | 自主结构能否外推到更长推理链和新树形？ | 未知 |
 | 能否改善真实语言模型？ | 未知 |
@@ -190,7 +190,21 @@ B-oracle 在两个评估中的正确树率、边 F1 和完整归约率都是 100
 
 预注册门槛要求 B-oracle 和 D-true 在两个评估上都达到至少 50% 准确率且交叉熵不超过 1.50；四个必需格子全部失败，正式 disposition 为 `feasibility_failed`。按照冻结协议，项目没有启动查询条件路由、额外种子或连续相位训练。
 
-下一轮应先扩大独立训练 family 覆盖，并保留验证与最终保留集。它需要在训练前冻结，证明至少 B-oracle 和 D-true 能对未见 family 泛化，之后才有资格询问模型能否自己找到合并顺序。
+R4 已按这个要求扩大独立训练 family，并冻结验证集与最终保留集。结果如下。
+
+### Stage 2 R4：扩大数据仍未建立基础学习
+
+R4 把独立训练 family 从 84 个增加到 1,680 个，同时保持总 family exposure 为 25,200。40 个平衡数据块循环 15 次，每个训练 family 恰好出现 15 次。验证集另含 336 个未见 family，训练与验证重叠为零；最终还预留了 336 个 family，只有验证通过才允许打开。
+
+| 模型 | 训练准确率 | n=3 验证 | n=4 验证 |
+| --- | ---: | ---: | ---: |
+| 普通 A | 15.21% | 9.52% | 12.24% |
+| B-oracle | 15.21% | 5.95% | 7.82% |
+| D-true | 15.15% | 3.57% | 7.48% |
+
+七分类随机水平是 14.29%。这一次不是“训练池拟合很好、未见样本失败”，而是三种模型在冻结的 600 步预算内连扩大后的训练分布也没有学会。B-oracle 的正确树率、边 F1 和完整归约率仍都是 100%，所以正确结构确实被执行了，但当前神经表示和训练方法没有把它转化为可迁移的模七计算能力。
+
+R4 四个必需验证格子全部失败，正式 disposition 为 `feasibility_failed`。验证账本在失败后封闭，336 个 reserve family 没有生成或评估。最稳妥的下一步不是立刻训练路由，而是把任务拆成“单步运算 -> 固定查询组合 -> 双查询 oracle 组合”的算术因果阶梯，分别检查表示能力、组合过程的信用分配和训练预算。
 
 ### 对当前主流推理的意义
 
@@ -198,7 +212,7 @@ B-oracle 在两个评估中的正确树率、边 F1 和完整归约率都是 100
 
 它的研究价值在于确认了一项必要前提：在一个受控任务中，正确的层级组织确实比平坦输入和错误结构更有价值。如果 Stage 1 没有通过，就没有充分理由继续投入自主结构学习；现在这条研究路线获得了进入下一实验阶段的依据。
 
-Stage 2 R2 和 R3 的负校准继续缩小了问题范围，但没有改变对主流推理的结论。R3 甚至还没有证明当前小任务的 held-out 泛化，因此不能把结果解释为动态层级成功或失败。只有后续模型先通过学习可行性门，再稳定学会 query-dependent 合并并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
+Stage 2 R2、R3 和 R4 的负校准继续缩小了问题范围，但没有改变对主流推理的结论。R4 表明问题不只是小数据池记忆：在当前模型、课程和 600 步预算下，正确结构模型也没有学会扩大训练分布中的模七组合规则。只有后续模型先通过分级算术学习门，再稳定学会 query-dependent 合并并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
 
 ### 继续阅读
 
@@ -212,14 +226,17 @@ Stage 2 R2 和 R3 的负校准继续缩小了问题范围，但没有改变对�
 - Stage 2 R3 施工包：[stage2-construction-packet-r3.md](docs/stage2-construction-packet-r3.md)
 - Stage 2 R3 可行性结果：[stage2-r3-feasibility-result-20260809.md](docs/stage2-r3-feasibility-result-20260809.md)
 - Stage 2 R3 公开证据：[evidence/stage2-r3-feasibility/README.md](evidence/stage2-r3-feasibility/README.md)
+- Stage 2 R4 施工包：[stage2-construction-packet-r4.md](docs/stage2-construction-packet-r4.md)
+- Stage 2 R4 可行性结果：[stage2-r4-feasibility-result-20260809.md](docs/stage2-r4-feasibility-result-20260809.md)
+- Stage 2 R4 公开证据：[evidence/stage2-r4-feasibility/README.md](evidence/stage2-r4-feasibility/README.md)
 
 最简洁而准确的当前结论是：
 
-> 我们已经证明“正确结构值得学习”；但 R2 退化为立即停止，R3 又暴露出固定小训练池无法泛化，所以“模型能够自己学会结构”仍未开始得到有效验证。
+> 我们已经证明“正确结构值得学习”；但 R2 退化为立即停止，R3 记住了小训练池，R4 扩大数据后仍没有学会基础组合运算，所以“模型能够自己学会结构”仍未开始得到有效验证。
 
 ## Technical Reference
 
-This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but collapsed to immediate STOP. Stage 2 R3 removed STOP and verified oracle full-reduction execution, but failed its held-out learnability gate after overfitting a small fixed family pool. Neither result establishes learned hierarchy.
+This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but collapsed to immediate STOP. Stage 2 R3 verified oracle full reduction but overfit a small fixed family pool. Stage 2 R4 expanded unique training coverage 20-fold under equal total exposure; all three feasibility models remained near chance and failed validation. None of these results establishes learned hierarchy.
 
 ## Status
 
@@ -237,6 +254,8 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - The first 120-step DirectML calibration completed but B-query collapsed to immediate STOP on every evaluation row; all task models remained near chance, so the result is calibration-inconclusive.
 - Stage 2 R3 preserves R2 compatibility, removes learned STOP for full-expression reduction, adds a source-only selected-path B-oracle and frozen feasibility gate, and completed its 600-step DirectML calibration.
 - R3's oracle structure execution was exact, but B-oracle and D-true failed every held-out feasibility gate after fitting the repeated training pools. Routing, extra seeds, and continuous phase remain blocked.
+- Stage 2 R4 adds exhaustive balanced train/validation/reserve partitions, uniform 40-block scheduling, persistent one-shot reserve gating, reconstruction receipts, and backward-compatible R2/R3 serialization.
+- The single R4 DirectML run completed 600 steps with 1,680 unique training families. All models remained near chance, all required validation gates failed, and the reserve remained unopened.
 
 **Candidate hypotheses, not results**
 
@@ -245,6 +264,7 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - No experiment in this repository establishes learned dynamic hierarchy or autonomous boundary discovery.
 - Stage 2 R2 does not establish learned `MERGE/STOP`; its first calibration observed an all-STOP collapse.
 - Stage 2 R3 does not test learned routing; its `B-oracle` receives the correct source-only merge order, and the failed gate concerns held-out task generalization.
+- Stage 2 R4 also does not test learned routing. Its failure narrows the next question to arithmetic representation, composition credit assignment, curriculum, and budget without deciding among them.
 
 **Backend boundary**
 

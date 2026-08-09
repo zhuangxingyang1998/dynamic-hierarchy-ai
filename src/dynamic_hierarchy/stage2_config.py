@@ -1,4 +1,4 @@
-"""Typed configuration for the Stage 2 R2/R3 precedence-query experiments."""
+"""Typed configuration for the Stage 2 R2/R3/R4 precedence-query experiments."""
 
 from __future__ import annotations
 
@@ -63,6 +63,7 @@ class Stage2Profile:
     operator_pattern: str
     category: str
     shape_partition: str = "train"
+    blocks: int = 1
 
     def validate(self) -> None:
         if not self.name:
@@ -83,12 +84,16 @@ class Stage2Profile:
             "length_extrapolation",
             "topology_extrapolation",
             "heldout_evaluation",
+            "validation",
+            "final_reserve",
         }:
             raise ValueError(f"unsupported Stage 2 profile category: {self.category}")
         if self.shape_partition not in {"train", "heldout"}:
             raise ValueError("shape_partition must be 'train' or 'heldout'")
         if self.category == "train" and self.shape_partition != "train":
             raise ValueError("training profiles must use the train shape partition")
+        if self.blocks <= 0:
+            raise ValueError("Stage 2 profile blocks must be positive")
 
 
 @dataclass(frozen=True)
@@ -144,6 +149,22 @@ def _default_r3_eval_profiles() -> tuple[Stage2Profile, ...]:
     )
 
 
+def _default_r4_train_profiles() -> tuple[Stage2Profile, ...]:
+    return (
+        Stage2Profile("r4_train_n3", 3, "-+", "train", "train", 5),
+        Stage2Profile("r4_train_n4", 4, "-+-", "train", "train", 35),
+    )
+
+
+def _default_r4_eval_profiles() -> tuple[Stage2Profile, ...]:
+    return (
+        Stage2Profile("r4_validation_n3", 3, "-+", "validation", "heldout", 1),
+        Stage2Profile("r4_validation_n4", 4, "-+-", "validation", "heldout", 7),
+        Stage2Profile("r4_reserve_n3", 3, "-+", "final_reserve", "heldout", 1),
+        Stage2Profile("r4_reserve_n4", 4, "-+-", "final_reserve", "heldout", 7),
+    )
+
+
 def _default_a_param_model() -> Stage2ModelSpec:
     return Stage2ModelSpec(layers=3, feedforward_dim=128)
 
@@ -192,6 +213,10 @@ class Stage2Config:
 
     def to_dict(self) -> dict[str, object]:
         payload = asdict(self)
+        if self.revision in {"stage2-r2", "stage2-r3"}:
+            for key in ("train_profiles", "evaluation_profiles"):
+                for profile in payload[key]:
+                    profile.pop("blocks", None)
         if self.revision == "stage2-r2":
             for key in (
                 "phase",
@@ -215,8 +240,8 @@ class Stage2Config:
         return R3_ROUTING_CONTROLS
 
     def validate(self) -> None:
-        if self.revision not in {"stage2-r2", "stage2-r3"}:
-            raise ValueError("revision must be 'stage2-r2' or 'stage2-r3'")
+        if self.revision not in {"stage2-r2", "stage2-r3", "stage2-r4"}:
+            raise ValueError("revision must be 'stage2-r2', 'stage2-r3', or 'stage2-r4'")
         if self.phase not in {"feasibility", "routing"}:
             raise ValueError("phase must be 'feasibility' or 'routing'")
         if self.revision == "stage2-r2" and self.phase != "routing":
@@ -258,7 +283,7 @@ class Stage2Config:
                     raise ValueError("R2 calibration requires seed 821101 and at most 600 steps")
                 if self.evaluation_blocks < 10 or self.time_budget_minutes > 30.0:
                     raise ValueError("R2 calibration requires >=10 evaluation blocks and <=30 minutes")
-            else:
+            elif self.revision == "stage2-r3":
                 if self.phase != "feasibility":
                     raise ValueError("only the R3 feasibility phase has a frozen calibration config")
                 if self.seed != 821301 or self.optimizer_steps > 600:
@@ -267,6 +292,42 @@ class Stage2Config:
                     raise ValueError("R3 feasibility calibration requires one held-out block per profile and <=30 minutes")
                 if self.families_per_stratum != 42:
                     raise ValueError("R3 feasibility calibration uses exactly one 42-family block per profile")
+            else:
+                if self.phase != "feasibility":
+                    raise ValueError("only the R4 feasibility phase has a frozen calibration config")
+                if self.seed != 821401 or self.optimizer_steps != 600:
+                    raise ValueError("R4 feasibility calibration requires seed 821401 and exactly 600 steps")
+                if self.device != "directml" or self.deterministic:
+                    raise ValueError("R4 feasibility calibration is frozen to nondeterministic DirectML")
+                if self.cpu_threads != 4 or self.learning_rate != 0.001:
+                    raise ValueError("R4 feasibility calibration is frozen to four CPU threads and learning rate 0.001")
+                if (
+                    self.families_per_stratum != 42
+                    or self.max_generation_attempts_per_family != 512
+                    or self.evaluation_blocks != 1
+                ):
+                    raise ValueError("R4 feasibility calibration data construction fields are frozen")
+                if (
+                    self.checkpoint_steps != 25
+                    or self.time_budget_minutes != 30.0
+                    or self.yield_ms != 2
+                ):
+                    raise ValueError("R4 feasibility calibration recovery and time fields are frozen")
+                if (
+                    self.cpu_pause_percent != 90.0
+                    or self.cpu_resume_percent != 75.0
+                    or self.ram_pause_gb != 4.0
+                    or self.ram_resume_gb != 6.0
+                    or self.pressure_samples != 3
+                    or self.recovery_samples != 2
+                ):
+                    raise ValueError("R4 feasibility calibration resource guard is frozen")
+                if self.model != Stage2ModelSpec():
+                    raise ValueError("R4 feasibility calibration B/D model specification is frozen")
+                if self.a_param_model != _default_a_param_model():
+                    raise ValueError("R4 feasibility calibration A-Q-param specification is frozen")
+                if self.a_flop_model != _default_a_flop_model():
+                    raise ValueError("R4 feasibility calibration unused A-Q-flop specification is frozen")
         for threshold_name, value in (
             ("feasibility_min_accuracy", self.feasibility_min_accuracy),
             ("routing_required_iid_accuracy", self.routing_required_iid_accuracy),
@@ -280,7 +341,7 @@ class Stage2Config:
                 raise ValueError(f"{threshold_name} must be between 0 and 1")
         if self.feasibility_max_cross_entropy <= 0.0:
             raise ValueError("feasibility_max_cross_entropy must be positive")
-        if self.revision == "stage2-r3":
+        if self.revision in {"stage2-r3", "stage2-r4"}:
             for threshold_name, expected in R3_FROZEN_THRESHOLDS.items():
                 if getattr(self, threshold_name) != expected:
                     raise ValueError(
@@ -320,6 +381,47 @@ class Stage2Config:
                 raise ValueError("R3 feasibility evaluation profiles are frozen to paired n3 '-+' and n4 '-+-' heldout pools")
             if self.families_per_stratum != 42:
                 raise ValueError("R3 feasibility requires exactly one 42-family block per profile")
+        if self.revision == "stage2-r4":
+            if self.phase != "feasibility":
+                raise ValueError("Stage 2 R4 supports only phase='feasibility'")
+            expected_train = (
+                ("r4_train_n3", 3, "-+", "train", "train", 5),
+                ("r4_train_n4", 4, "-+-", "train", "train", 35),
+            )
+            expected_eval = (
+                ("r4_validation_n3", 3, "-+", "validation", "heldout", 1),
+                ("r4_validation_n4", 4, "-+-", "validation", "heldout", 7),
+                ("r4_reserve_n3", 3, "-+", "final_reserve", "heldout", 1),
+                ("r4_reserve_n4", 4, "-+-", "final_reserve", "heldout", 7),
+            )
+            observed_train = tuple(
+                (
+                    profile.name,
+                    profile.leaf_count,
+                    profile.operator_pattern,
+                    profile.category,
+                    profile.shape_partition,
+                    profile.blocks,
+                )
+                for profile in self.train_profiles
+            )
+            observed_eval = tuple(
+                (
+                    profile.name,
+                    profile.leaf_count,
+                    profile.operator_pattern,
+                    profile.category,
+                    profile.shape_partition,
+                    profile.blocks,
+                )
+                for profile in self.evaluation_profiles
+            )
+            if observed_train != expected_train:
+                raise ValueError("R4 training profiles and 5/35 block counts are frozen")
+            if observed_eval != expected_eval:
+                raise ValueError("R4 validation/reserve profiles and 1/7 block counts are frozen")
+            if self.families_per_stratum != 42 or self.evaluation_blocks != 1:
+                raise ValueError("R4 uses profile-owned counts of 42-family balanced blocks")
         self.model.validate()
         self.a_param_model.validate()
         self.a_flop_model.validate()
@@ -334,6 +436,7 @@ def _profile(raw: Stage2Profile | dict[str, object]) -> Stage2Profile:
         operator_pattern=str(raw["operator_pattern"]),
         category=str(raw["category"]),
         shape_partition=str(raw.get("shape_partition", "train")),
+        blocks=int(raw.get("blocks", 1)),
     )
 
 
@@ -347,7 +450,7 @@ def _bool(raw: dict[str, object], key: str, default: bool) -> bool:
 def stage2_config_from_dict(raw: dict[str, object]) -> Stage2Config:
     revision = str(raw.get("revision", "stage2-r2"))
     default_phase = "routing"
-    if revision == "stage2-r3":
+    if revision in {"stage2-r3", "stage2-r4"}:
         default_phase = "feasibility"
     model = Stage2ModelSpec(**dict(raw.get("model", {})))
     a_param_model = Stage2ModelSpec(**dict(raw.get("a_param_model", asdict(_default_a_param_model()))))
@@ -356,7 +459,16 @@ def stage2_config_from_dict(raw: dict[str, object]) -> Stage2Config:
         revision=revision,
         phase=str(raw.get("phase", default_phase)),
         run_kind=str(raw.get("run_kind", "smoke")),
-        seed=int(raw.get("seed", 821101 if revision == "stage2-r2" else 821301)),
+        seed=int(
+            raw.get(
+                "seed",
+                821101
+                if revision == "stage2-r2"
+                else 821301
+                if revision == "stage2-r3"
+                else 821401,
+            )
+        ),
         device=str(raw.get("device", "cpu")),
         deterministic=_bool(raw, "deterministic", True),
         cpu_threads=int(raw.get("cpu_threads", 4)),
@@ -402,7 +514,9 @@ def stage2_config_from_dict(raw: dict[str, object]) -> Stage2Config:
                 "train_profiles",
                 _default_train_profiles()
                 if revision == "stage2-r2"
-                else _default_r3_train_profiles(),
+                else _default_r3_train_profiles()
+                if revision == "stage2-r3"
+                else _default_r4_train_profiles(),
             )
         ),
         evaluation_profiles=tuple(
@@ -411,7 +525,9 @@ def stage2_config_from_dict(raw: dict[str, object]) -> Stage2Config:
                 "evaluation_profiles",
                 _default_evaluation_profiles()
                 if revision == "stage2-r2"
-                else _default_r3_eval_profiles(),
+                else _default_r3_eval_profiles()
+                if revision == "stage2-r3"
+                else _default_r4_eval_profiles(),
             )
         ),
         model=model,

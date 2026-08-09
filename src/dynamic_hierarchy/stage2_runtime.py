@@ -1,4 +1,4 @@
-"""Paired Stage 2 R2/R3 training, interventions, evaluation, and recovery."""
+"""Paired Stage 2 R2/R3/R4 training, evaluation, and recovery."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import json
 import math
 import os
 import time
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,7 @@ from .stage2_config import (
     R3_FEASIBILITY_GATE_CONTROLS,
     Stage2Config,
     Stage2ModelSpec,
+    Stage2Profile,
 )
 from .stage2_data import Stage2GeneratedBatch, Stage2OrdinaryBatch, Stage2PrecedenceFamilyGenerator
 from .stage2_model import (
@@ -95,8 +97,17 @@ def _hash_set_digest(values: set[str]) -> str:
     return hashlib.sha256("\n".join(sorted(values)).encode("ascii")).hexdigest()
 
 
+def _canonical_digest(value: object) -> str:
+    payload = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(payload.encode("ascii")).hexdigest()
+
+
 def _packet_id(config: Stage2Config) -> str:
-    return "DH-S2-R3" if config.revision == "stage2-r3" else "DH-S2-R2"
+    return {
+        "stage2-r2": "DH-S2-R2",
+        "stage2-r3": "DH-S2-R3",
+        "stage2-r4": "DH-S2-R4",
+    }[config.revision]
 
 
 def _model_config(spec: Stage2ModelSpec) -> ModelConfig:
@@ -228,16 +239,22 @@ class Stage2Trainer:
         self.generator = Stage2PrecedenceFamilyGenerator(config.seed + 1)
         self.fixed_train_pools = self._build_fixed_train_pools()
         self.fixed_train_pool_evidence = self._fixed_pool_evidence(self.fixed_train_pools)
+        self.fixed_train_schedule = self._build_fixed_train_schedule()
         self.global_step = 0
         self.training_family_hashes: set[str] = set()
         self.training_duplicate_families = 0
         self.training_family_exposures = 0
         self.training_repeated_family_exposures = 0
         self.exposed_training_family_hashes: set[str] = set()
+        self.training_family_exposure_counts: dict[str, int] = {}
         if self.fixed_train_pools:
             for generated in self.fixed_train_pools.values():
                 self.training_family_hashes.update(generated.generation.family_hashes)
         self.evaluation_family_hashes: set[str] = set()
+        self.validation_family_hashes: set[str] = set()
+        self.reserve_family_hashes: set[str] = set()
+        self.reserve_opened = False
+        self._validate_r4_train_partition()
         self.latest_evaluation: dict[str, object] = {}
         self.elapsed_before_resume = 0.0
         self.process_started = time.monotonic()
@@ -339,17 +356,66 @@ class Stage2Trainer:
                 raise RuntimeError("D-true and D-sham must be parameter matched")
 
     def _build_fixed_train_pools(self) -> dict[str, Stage2GeneratedBatch]:
-        if not (self.config.revision == "stage2-r3" and self.config.phase == "feasibility"):
+        if not (
+            self.config.revision in {"stage2-r3", "stage2-r4"}
+            and self.config.phase == "feasibility"
+        ):
             return {}
         pools: dict[str, Stage2GeneratedBatch] = {}
         for profile_index, profile in enumerate(self.config.train_profiles):
             generator = Stage2PrecedenceFamilyGenerator(self.config.seed + 101 + profile_index)
-            pools[profile.name] = generator.balanced_block(
-                profile,
-                blocks=self.config.families_per_stratum // 42,
-                max_attempts_per_family=self.config.max_generation_attempts_per_family,
-            )
+            if self.config.revision == "stage2-r3":
+                pools[profile.name] = generator.balanced_block(
+                    profile,
+                    blocks=self.config.families_per_stratum // 42,
+                    max_attempts_per_family=self.config.max_generation_attempts_per_family,
+                )
+                continue
+            accepted_hashes: set[str] = set()
+            for block_index in range(profile.blocks):
+                generated = generator.balanced_block(
+                    profile,
+                    blocks=1,
+                    max_attempts_per_family=self.config.max_generation_attempts_per_family,
+                    excluded_family_hashes=accepted_hashes,
+                )
+                hashes = set(generated.generation.family_hashes)
+                if hashes & accepted_hashes:
+                    raise RuntimeError("R4 fixed training blocks overlap")
+                accepted_hashes.update(hashes)
+                key = f"{profile.name}/block-{block_index:02d}"
+                pools[key] = generated
         return pools
+
+    def _build_fixed_train_schedule(self) -> tuple[str, ...]:
+        if not self.fixed_train_pools:
+            return ()
+        if self.config.revision != "stage2-r4":
+            return tuple(profile.name for profile in self.config.train_profiles)
+        keys = tuple(self.fixed_train_pools)
+        generator = torch.Generator(device="cpu").manual_seed(self.config.seed + 707)
+        order = torch.randperm(len(keys), generator=generator).tolist()
+        return tuple(keys[index] for index in order)
+
+    def _validate_r4_train_partition(self) -> None:
+        if self.config.revision != "stage2-r4":
+            return
+        if len(self.fixed_train_pools) != 40 or len(self.fixed_train_schedule) != 40:
+            raise RuntimeError("R4 requires exactly 40 fixed training blocks")
+        if len(set(self.fixed_train_schedule)) != 40:
+            raise RuntimeError("R4 fixed training schedule must visit every block once")
+        if set(self.fixed_train_schedule) != set(self.fixed_train_pools):
+            raise RuntimeError("R4 fixed training schedule does not match constructed blocks")
+        if len(self.training_family_hashes) != 1680:
+            raise RuntimeError("R4 requires exactly 1,680 unique training families")
+        for key, generated in self.fixed_train_pools.items():
+            counts = generated.generation.label_pair_counts
+            if generated.generation.accepted_families != 42:
+                raise RuntimeError(f"R4 training block {key} does not contain 42 families")
+            if len(generated.ordinary.query_row_hashes) != 84:
+                raise RuntimeError(f"R4 training block {key} does not contain 84 query rows")
+            if len(counts) != 42 or any(count != 1 for _, _, count in counts):
+                raise RuntimeError(f"R4 training block {key} is not label-pair balanced")
 
     def _fixed_pool_evidence(
         self,
@@ -359,7 +425,7 @@ class Stage2Trainer:
         for profile_name, generated in pools.items():
             family_hashes = tuple(generated.generation.family_hashes)
             query_hashes = tuple(generated.ordinary.query_row_hashes)
-            evidence[profile_name] = {
+            item: dict[str, object] = {
                 "accepted_families": generated.generation.accepted_families,
                 "query_rows": int(generated.ordinary.labels.shape[0]),
                 "family_hashes": family_hashes,
@@ -368,7 +434,81 @@ class Stage2Trainer:
                 "query_row_hash_digest": _hash_set_digest(set(query_hashes)),
                 "label_pair_counts": generated.generation.label_pair_counts,
             }
+            if self.config.revision == "stage2-r4":
+                item["profile"] = generated.ordinary.profile_name
+            evidence[profile_name] = item
         return evidence
+
+    def _r4_reconstruction_digest(self) -> str:
+        return _canonical_digest(
+            {
+                "fixed_train_pools": self.fixed_train_pool_evidence,
+                "fixed_train_schedule": self.fixed_train_schedule,
+            }
+        )
+
+    def _expected_r4_exposure_counts(self, global_step: int) -> dict[str, int]:
+        if self.config.revision != "stage2-r4":
+            return {}
+        schedule_length = len(self.fixed_train_schedule)
+        complete_cycles, remainder = divmod(global_step, schedule_length)
+        expected = {family_hash: 0 for family_hash in self.training_family_hashes}
+        for position, key in enumerate(self.fixed_train_schedule):
+            exposures = complete_cycles + (1 if position < remainder else 0)
+            for family_hash in self.fixed_train_pools[key].generation.family_hashes:
+                expected[family_hash] = exposures
+        return expected
+
+    def _validate_r4_exposure_state(self) -> None:
+        if self.config.revision != "stage2-r4":
+            return
+        expected = self._expected_r4_exposure_counts(self.global_step)
+        observed = {
+            family_hash: self.training_family_exposure_counts.get(family_hash, 0)
+            for family_hash in self.training_family_hashes
+        }
+        if observed != expected:
+            raise RuntimeError("R4 per-family exposure counts do not match global step and schedule")
+        if self.training_family_exposures != 42 * self.global_step:
+            raise RuntimeError("R4 total family exposures do not match global step")
+        expected_repeats = sum(max(0, count - 1) for count in expected.values())
+        if self.training_repeated_family_exposures != expected_repeats:
+            raise RuntimeError("R4 repeated family exposures are inconsistent")
+        expected_exposed = {
+            family_hash for family_hash, count in expected.items() if count > 0
+        }
+        if self.exposed_training_family_hashes != expected_exposed:
+            raise RuntimeError("R4 exposed-family set is inconsistent with exposure counts")
+
+    @staticmethod
+    def _validate_r4_generated_profile(
+        profile: Stage2Profile,
+        generated: Stage2GeneratedBatch,
+    ) -> None:
+        expected_families = 42 * profile.blocks
+        expected_rows = 2 * expected_families
+        family_hashes = generated.generation.family_hashes
+        row_hashes = generated.ordinary.query_row_hashes
+        if generated.ordinary.profile_name != profile.name:
+            raise RuntimeError("R4 generated profile name mismatch")
+        if generated.generation.accepted_families != expected_families:
+            raise RuntimeError(f"R4 profile {profile.name} has the wrong family count")
+        if len(family_hashes) != expected_families or len(set(family_hashes)) != expected_families:
+            raise RuntimeError(f"R4 profile {profile.name} contains duplicate accepted families")
+        if len(row_hashes) != expected_rows or len(set(row_hashes)) != expected_rows:
+            raise RuntimeError(f"R4 profile {profile.name} has invalid query-row hashes")
+        if Counter(generated.ordinary.base_family_hashes) != Counter(
+            {family_hash: 2 for family_hash in family_hashes}
+        ):
+            raise RuntimeError(f"R4 profile {profile.name} does not contain paired query rows")
+        pair_counts = generated.generation.label_pair_counts
+        if len(pair_counts) != 42 or any(count != profile.blocks for _, _, count in pair_counts):
+            raise RuntimeError(f"R4 profile {profile.name} is not label-pair balanced")
+        for query_id in (0, 1):
+            mask = generated.ordinary.query_ids.eq(query_id)
+            counts = torch.bincount(generated.ordinary.labels[mask], minlength=7).tolist()
+            if counts != [6 * profile.blocks] * 7:
+                raise RuntimeError(f"R4 profile {profile.name} query labels are not balanced")
 
     def elapsed_seconds(self) -> float:
         return self.elapsed_before_resume + time.monotonic() - self.process_started
@@ -377,7 +517,10 @@ class Stage2Trainer:
         return self.elapsed_seconds() >= self.config.time_budget_minutes * 60.0
 
     def _oracle_forced_compute_mode(self) -> str:
-        if self.config.revision == "stage2-r3" and self.config.phase == "feasibility":
+        if (
+            self.config.revision in {"stage2-r3", "stage2-r4"}
+            and self.config.phase == "feasibility"
+        ):
             return "selected_only"
         return "candidate_matched"
 
@@ -440,7 +583,8 @@ class Stage2Trainer:
     def _training_batch_for_step(self) -> Stage2GeneratedBatch:
         profile = self.config.train_profiles[self.global_step % len(self.config.train_profiles)]
         if self.fixed_train_pools:
-            generated = self.fixed_train_pools[profile.name]
+            key = self.fixed_train_schedule[self.global_step % len(self.fixed_train_schedule)]
+            generated = self.fixed_train_pools[key]
         else:
             generated = self.generator.balanced_block(
                 profile,
@@ -453,6 +597,9 @@ class Stage2Trainer:
                 self.training_family_hashes.add(family_hash)
         for family_hash in generated.generation.family_hashes:
             self.training_family_exposures += 1
+            self.training_family_exposure_counts[family_hash] = (
+                self.training_family_exposure_counts.get(family_hash, 0) + 1
+            )
             if family_hash in self.exposed_training_family_hashes:
                 self.training_repeated_family_exposures += 1
             else:
@@ -783,10 +930,14 @@ class Stage2Trainer:
             },
         }
 
-    def _feasibility_gate(self) -> dict[str, object]:
+    def _feasibility_gate(
+        self,
+        required_profiles: tuple[Stage2Profile, ...] | None = None,
+    ) -> dict[str, object]:
         failures: list[str] = []
         profile_results: dict[str, object] = {}
         profiles = self.latest_evaluation.get("profiles", {})
+        gate_profiles = required_profiles or self.config.evaluation_profiles
         if not isinstance(profiles, dict):
             return {
                 "phase": "feasibility",
@@ -801,7 +952,7 @@ class Stage2Trainer:
                 "passed": False,
                 "failures": ["profiles:invalid"],
             }
-        for profile in self.config.evaluation_profiles:
+        for profile in gate_profiles:
             profile_result = profiles.get(profile.name)
             if not isinstance(profile_result, dict):
                 failures.append(f"{profile.name}:missing_profile")
@@ -829,16 +980,36 @@ class Stage2Trainer:
                     and len(prediction_counts) == 7
                     and all(float(item) > 0.0 for item in prediction_counts)
                 )
+                structure_valid = True
+                if self.config.revision == "stage2-r4" and control == "B-oracle":
+                    structure = metrics.get("structure")
+                    compute = metrics.get("compute")
+                    structure_valid = (
+                        metrics.get("selection_path") == "forced_selected_only"
+                        and isinstance(structure, dict)
+                        and structure.get("exact_tree_rate") == 1.0
+                        and structure.get("edge_f1") == 1.0
+                        and structure.get("full_reduction_rate") == 1.0
+                        and structure.get("immediate_stop_rate") == 0.0
+                        and structure.get("early_stop_rate") == 0.0
+                        and isinstance(compute, dict)
+                        and compute.get("stop_scores") == 0
+                        and compute.get("unselected_candidate_compositions") == 0
+                        and compute.get("candidate_compositions")
+                        == compute.get("selected_compositions")
+                    )
                 passed = (
                     finite
                     and float(accuracy) >= self.config.feasibility_min_accuracy
                     and float(cross_entropy) <= self.config.feasibility_max_cross_entropy
                     and seven_predicted
+                    and structure_valid
                 )
                 profile_results[profile.name][control] = {
                     "accuracy": accuracy,
                     "cross_entropy": cross_entropy,
                     "seven_predicted_classes": seven_predicted,
+                    "causal_structure_valid": structure_valid,
                     "finite": finite,
                     "passed": passed,
                 }
@@ -858,37 +1029,230 @@ class Stage2Trainer:
             "failures": failures,
         }
 
-    def evaluate(self) -> dict[str, object]:
-        profiles: dict[str, object] = {}
-        accepted_evaluation_hashes: set[str] = set()
-        excluded = set(self.training_family_hashes)
-        for profile_index, profile in enumerate(self.config.evaluation_profiles):
+    def _evaluate_profiles(
+        self,
+        requested_profiles: tuple[Stage2Profile, ...],
+        *,
+        excluded: set[str],
+        accepted_evaluation_hashes: set[str],
+        profiles: dict[str, object],
+    ) -> None:
+        profile_positions = {
+            profile.name: index
+            for index, profile in enumerate(self.config.evaluation_profiles)
+        }
+        for profile in requested_profiles:
+            profile_index = profile_positions[profile.name]
             generator = Stage2PrecedenceFamilyGenerator(
                 self.config.seed + 10000 + 1009 * profile_index
             )
             generated = generator.balanced_block(
                 profile,
-                blocks=self.config.evaluation_blocks,
+                blocks=(
+                    profile.blocks
+                    if self.config.revision == "stage2-r4"
+                    else self.config.evaluation_blocks
+                ),
                 max_attempts_per_family=self.config.max_generation_attempts_per_family,
                 excluded_family_hashes=excluded | accepted_evaluation_hashes,
             )
+            if self.config.revision == "stage2-r4":
+                self._validate_r4_generated_profile(profile, generated)
             hashes = set(generated.generation.family_hashes)
             if hashes & excluded or hashes & accepted_evaluation_hashes:
                 raise RuntimeError("Stage 2 base-family split overlap detected")
             accepted_evaluation_hashes.update(hashes)
             profiles[profile.name] = self._evaluate_profile(generated)
-        self.evaluation_family_hashes = accepted_evaluation_hashes
-        self.latest_evaluation = {
+
+    def _evaluation_header(
+        self,
+        profiles: dict[str, object],
+        accepted_evaluation_hashes: set[str],
+    ) -> dict[str, object]:
+        return {
             "kind": self.config.run_kind,
             "revision": self.config.revision,
             "phase": self.config.phase,
             "profiles": profiles,
             "train_evaluation_overlap": 0,
             "training_family_hash_count": len(self.training_family_hashes),
-            "evaluation_family_hash_count": len(self.evaluation_family_hashes),
+            "evaluation_family_hash_count": len(accepted_evaluation_hashes),
             "training_family_hash_digest": _hash_set_digest(self.training_family_hashes),
-            "evaluation_family_hash_digest": _hash_set_digest(self.evaluation_family_hashes),
+            "evaluation_family_hash_digest": _hash_set_digest(accepted_evaluation_hashes),
         }
+
+    def _r4_evaluation_ledger_path(self) -> Path:
+        return self.run_dir / "r4-evaluation-ledger.json"
+
+    def _write_r4_evaluation_ledger(self, state: str) -> None:
+        atomic_write_json(
+            self._r4_evaluation_ledger_path(),
+            {
+                "schema_version": 1,
+                "packet": "DH-S2-R4",
+                "config_digest": _canonical_digest(self.config.to_dict()),
+                "state": state,
+                "reserve_opened": self.reserve_opened,
+                "validation_family_hashes": sorted(self.validation_family_hashes),
+                "reserve_family_hashes": sorted(self.reserve_family_hashes),
+                "evaluation_family_hashes": sorted(self.evaluation_family_hashes),
+                "latest_evaluation": self.latest_evaluation,
+            },
+        )
+
+    def _load_r4_evaluation_ledger(self) -> dict[str, object] | None:
+        path = self._r4_evaluation_ledger_path()
+        if not path.is_file():
+            return None
+        raw = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict) or raw.get("schema_version") != 1:
+            raise RuntimeError("R4 evaluation ledger is malformed")
+        if raw.get("packet") != "DH-S2-R4":
+            raise RuntimeError("R4 evaluation ledger packet mismatch")
+        if raw.get("config_digest") != _canonical_digest(self.config.to_dict()):
+            raise RuntimeError("R4 evaluation ledger config mismatch")
+        state = raw.get("state")
+        if state == "reserve_opened":
+            raise RuntimeError(
+                "R4 reserve was opened but evaluation did not complete; one-shot reserve cannot be replayed"
+            )
+        if state not in {"validation_failed", "complete"}:
+            raise RuntimeError("R4 evaluation ledger has an unsupported state")
+        latest = raw.get("latest_evaluation")
+        if not isinstance(latest, dict):
+            raise RuntimeError("R4 evaluation ledger lacks completed evaluation evidence")
+        self.validation_family_hashes = set(raw.get("validation_family_hashes", ()))
+        self.reserve_family_hashes = set(raw.get("reserve_family_hashes", ()))
+        self.evaluation_family_hashes = set(raw.get("evaluation_family_hashes", ()))
+        self.reserve_opened = bool(raw.get("reserve_opened", False))
+        self.latest_evaluation = latest
+        return latest
+
+    def evaluate(self) -> dict[str, object]:
+        profiles: dict[str, object] = {}
+        accepted_evaluation_hashes: set[str] = set()
+        excluded = set(self.training_family_hashes)
+        if self.config.revision == "stage2-r4":
+            prior = self._load_r4_evaluation_ledger()
+            if prior is not None:
+                return prior
+            validation_profiles = tuple(
+                profile
+                for profile in self.config.evaluation_profiles
+                if profile.category == "validation"
+            )
+            reserve_profiles = tuple(
+                profile
+                for profile in self.config.evaluation_profiles
+                if profile.category == "final_reserve"
+            )
+            self._evaluate_profiles(
+                validation_profiles,
+                excluded=excluded,
+                accepted_evaluation_hashes=accepted_evaluation_hashes,
+                profiles=profiles,
+            )
+            self.validation_family_hashes = set(accepted_evaluation_hashes)
+            if len(self.validation_family_hashes) != 336:
+                raise RuntimeError("R4 validation split must contain 336 unique families")
+            self.latest_evaluation = self._evaluation_header(
+                profiles, accepted_evaluation_hashes
+            )
+            validation_gate = self._feasibility_gate(validation_profiles)
+            self.reserve_opened = bool(validation_gate.get("passed"))
+            if self.reserve_opened:
+                self.evaluation_family_hashes = set(accepted_evaluation_hashes)
+                self.latest_evaluation.update(
+                    {
+                        "reserve_opened": True,
+                        "validation_family_hash_count": len(
+                            self.validation_family_hashes
+                        ),
+                        "reserve_family_hash_count": 0,
+                        "validation_family_hash_digest": _hash_set_digest(
+                            self.validation_family_hashes
+                        ),
+                        "reserve_family_hash_digest": _hash_set_digest(set()),
+                        "gate": {
+                            "phase": "feasibility",
+                            "protocol": "validation_then_reserve",
+                            "validation": validation_gate,
+                            "reserve": {
+                                "passed": False,
+                                "not_evaluated": "reserve_opened_pending",
+                            },
+                            "reserve_opened": True,
+                            "passed": False,
+                        },
+                    }
+                )
+                self._write_r4_evaluation_ledger("reserve_opened")
+                before_reserve = set(accepted_evaluation_hashes)
+                self._evaluate_profiles(
+                    reserve_profiles,
+                    excluded=excluded,
+                    accepted_evaluation_hashes=accepted_evaluation_hashes,
+                    profiles=profiles,
+                )
+                self.reserve_family_hashes = accepted_evaluation_hashes - before_reserve
+                if len(self.reserve_family_hashes) != 336:
+                    raise RuntimeError("R4 reserve split must contain 336 unique families")
+                if len(self.training_family_hashes | accepted_evaluation_hashes) != 2352:
+                    raise RuntimeError("R4 opened partition does not exhaust 2,352 legal families")
+                self.latest_evaluation = self._evaluation_header(
+                    profiles, accepted_evaluation_hashes
+                )
+                reserve_gate = self._feasibility_gate(reserve_profiles)
+            else:
+                self.reserve_family_hashes = set()
+                reserve_gate = {
+                    "phase": "feasibility",
+                    "required_controls": R3_FEASIBILITY_GATE_CONTROLS,
+                    "profiles": {},
+                    "passed": False,
+                    "not_evaluated": "validation_failed",
+                    "failures": ["reserve:not_opened"],
+                }
+            self.evaluation_family_hashes = set(accepted_evaluation_hashes)
+            self.latest_evaluation.update(
+                {
+                    "reserve_opened": self.reserve_opened,
+                    "validation_family_hash_count": len(self.validation_family_hashes),
+                    "reserve_family_hash_count": len(self.reserve_family_hashes),
+                    "validation_family_hash_digest": _hash_set_digest(
+                        self.validation_family_hashes
+                    ),
+                    "reserve_family_hash_digest": _hash_set_digest(
+                        self.reserve_family_hashes
+                    ),
+                    "gate": {
+                        "phase": "feasibility",
+                        "protocol": "validation_then_reserve",
+                        "validation": validation_gate,
+                        "reserve": reserve_gate,
+                        "reserve_opened": self.reserve_opened,
+                        "passed": bool(
+                            validation_gate.get("passed")
+                            and reserve_gate.get("passed")
+                        ),
+                    },
+                }
+            )
+            self._write_r4_evaluation_ledger(
+                "complete" if self.reserve_opened else "validation_failed"
+            )
+            return self.latest_evaluation
+
+        self._evaluate_profiles(
+            self.config.evaluation_profiles,
+            excluded=excluded,
+            accepted_evaluation_hashes=accepted_evaluation_hashes,
+            profiles=profiles,
+        )
+        self.evaluation_family_hashes = accepted_evaluation_hashes
+        self.latest_evaluation = self._evaluation_header(
+            profiles, accepted_evaluation_hashes
+        )
         if self.config.revision == "stage2-r3" and self.config.phase == "feasibility":
             self.latest_evaluation["gate"] = self._feasibility_gate()
         return self.latest_evaluation
@@ -903,9 +1267,9 @@ class Stage2Trainer:
         if self.config.phase == "feasibility":
             gate = self.latest_evaluation.get("gate")
             if not isinstance(gate, dict):
-                raise RuntimeError("R3 feasibility requires a completed gate before disposition")
+                raise RuntimeError("Stage 2 feasibility requires a completed gate before disposition")
             return "feasibility_pass" if gate.get("passed") else "feasibility_failed"
-        raise RuntimeError("R3 routing is not ReadyForRouting in this slice")
+        raise RuntimeError("Stage 2 routing is not ReadyForRouting in this slice")
 
     def incomplete_disposition(self) -> str:
         if self.config.revision == "stage2-r2":
@@ -991,7 +1355,7 @@ class Stage2Trainer:
                     (current - self._initial_router[name]).square().sum().sqrt().item()
                 )
             training[name] = item
-        return {
+        result = {
             "schema_version": 1,
             "packet": self.packet_id,
             "revision": self.config.revision,
@@ -1027,6 +1391,58 @@ class Stage2Trainer:
                 "candidate effect, a new training paradigm, novelty, or a formal result."
             ),
         }
+        if self.config.revision == "stage2-r4":
+            self._validate_r4_exposure_state()
+            exposure_values = tuple(
+                self.training_family_exposure_counts.get(family_hash, 0)
+                for family_hash in sorted(self.training_family_hashes)
+            )
+            exposure_histogram = {
+                str(exposure): count
+                for exposure, count in sorted(Counter(exposure_values).items())
+            }
+            result["data_isolation"].update(
+                {
+                    "fixed_train_schedule": self.fixed_train_schedule,
+                    "fixed_train_schedule_length": len(self.fixed_train_schedule),
+                    "fixed_train_reconstruction_digest": self._r4_reconstruction_digest(),
+                    "fixed_train_block_balance_verified": True,
+                    "complete_schedule_cycles": self.global_step
+                    // len(self.fixed_train_schedule),
+                    "next_schedule_position": self.global_step
+                    % len(self.fixed_train_schedule),
+                    "training_exposure_min": min(exposure_values, default=0),
+                    "training_exposure_max": max(exposure_values, default=0),
+                    "training_exposure_uniform": len(set(exposure_values)) <= 1,
+                    "training_exposure_histogram": exposure_histogram,
+                    "validation_unique_base_families": len(
+                        self.validation_family_hashes
+                    ),
+                    "reserve_unique_base_families": len(self.reserve_family_hashes),
+                    "reserve_opened": self.reserve_opened,
+                    "validation_train_overlap": len(
+                        self.validation_family_hashes & self.training_family_hashes
+                    ),
+                    "reserve_prior_overlap": len(
+                        self.reserve_family_hashes
+                        & (self.training_family_hashes | self.validation_family_hashes)
+                    ),
+                    "complete_domain_coverage": (
+                        len(
+                            self.training_family_hashes
+                            | self.validation_family_hashes
+                            | self.reserve_family_hashes
+                        )
+                        == 2352
+                        if self.reserve_opened
+                        else None
+                    ),
+                    "evaluation_ledger_state": (
+                        "complete" if self.reserve_opened else "validation_failed"
+                    ),
+                }
+            )
+        return result
 
     def status(self, state: str, detail: str | None = None) -> dict[str, object]:
         return {
@@ -1045,6 +1461,7 @@ class Stage2Trainer:
         }
 
     def save_checkpoint(self, kind: str = "scheduled") -> Path:
+        self._validate_r4_exposure_state()
         directory = self.run_dir / "checkpoints"
         directory.mkdir(parents=True, exist_ok=True)
         path = directory / f"checkpoint-{self.global_step:08d}-{kind}.pt"
@@ -1081,6 +1498,17 @@ class Stage2Trainer:
                 "max_replayed_steps_on_crash": self.config.checkpoint_steps,
             },
         }
+        if self.config.revision == "stage2-r4":
+            payload.update(
+                {
+                    "fixed_train_schedule": self.fixed_train_schedule,
+                    "fixed_train_reconstruction_digest": self._r4_reconstruction_digest(),
+                    "training_family_exposure_counts": self.training_family_exposure_counts,
+                    "validation_family_hashes": sorted(self.validation_family_hashes),
+                    "reserve_family_hashes": sorted(self.reserve_family_hashes),
+                    "reserve_opened": self.reserve_opened,
+                }
+            )
         torch.save(payload, temporary)
         os.replace(temporary, path)
         self.last_checkpoint_step = self.global_step
@@ -1099,6 +1527,11 @@ class Stage2Trainer:
             raise RuntimeError("Stage 2 checkpoint config mismatch")
         if payload.get("fixed_train_pool_evidence", {}) != self.fixed_train_pool_evidence:
             raise RuntimeError("Stage 2 fixed training pools did not reconstruct identically")
+        if self.config.revision == "stage2-r4":
+            if tuple(payload.get("fixed_train_schedule", ())) != self.fixed_train_schedule:
+                raise RuntimeError("R4 fixed training schedule did not reconstruct identically")
+            if payload.get("fixed_train_reconstruction_digest") != self._r4_reconstruction_digest():
+                raise RuntimeError("R4 fixed training reconstruction digest mismatch")
         for name, model in self.models.items():
             model.load_state_dict(payload["models"][name])
         for name, optimizer in self.optimizers.items():
@@ -1112,8 +1545,11 @@ class Stage2Trainer:
         self.process_started = time.monotonic()
         self.training_family_hashes = set(payload["training_family_hashes"])
         self.training_duplicate_families = int(payload["training_duplicate_families"])
-        if self.config.revision == "stage2-r3" and "training_family_exposures" not in payload:
-            raise RuntimeError("R3 checkpoint lacks fixed-pool exposure accounting")
+        if (
+            self.config.revision in {"stage2-r3", "stage2-r4"}
+            and "training_family_exposures" not in payload
+        ):
+            raise RuntimeError("Stage 2 checkpoint lacks fixed-pool exposure accounting")
         self.training_family_exposures = int(
             payload.get("training_family_exposures", 0)
         )
@@ -1123,12 +1559,22 @@ class Stage2Trainer:
         self.exposed_training_family_hashes = set(
             payload.get("exposed_training_family_hashes", ())
         )
+        if self.config.revision == "stage2-r4" and "training_family_exposure_counts" not in payload:
+            raise RuntimeError("R4 checkpoint lacks per-family exposure accounting")
+        self.training_family_exposure_counts = {
+            str(key): int(value)
+            for key, value in payload.get("training_family_exposure_counts", {}).items()
+        }
         self.evaluation_family_hashes = set(payload["evaluation_family_hashes"])
+        self.validation_family_hashes = set(payload.get("validation_family_hashes", ()))
+        self.reserve_family_hashes = set(payload.get("reserve_family_hashes", ()))
+        self.reserve_opened = bool(payload.get("reserve_opened", False))
         self.latest_evaluation = payload["latest_evaluation"]
         self.cumulative = payload["cumulative"]
         self._initial_router = payload["initial_router"]
         torch.set_rng_state(payload["torch_rng_state"])
         self.generator.set_state(payload["generator_state"])
+        self._validate_r4_exposure_state()
         self.last_checkpoint_step = self.global_step
         self.last_checkpoint = str(path)
 
