@@ -19,6 +19,16 @@ from dynamic_hierarchy.stage2_config import (
 from dynamic_hierarchy.stage2_data import Stage2PrecedenceFamilyGenerator
 from dynamic_hierarchy.stage2_model import Stage2MergeClassifier
 from dynamic_hierarchy.stage2_runtime import Stage2Trainer
+from dynamic_hierarchy.stage2_ladder_config import (
+    LadderModelSpec,
+    stage2_ladder_config_from_dict,
+)
+from dynamic_hierarchy.stage2_ladder_data import ArithmeticLadderData
+from dynamic_hierarchy.stage2_ladder_model import (
+    ArithmeticComposerModel,
+    bridge_root_logits,
+)
+from dynamic_hierarchy.stage2_ladder_runtime import Stage2LadderTrainer
 
 import tempfile
 from pathlib import Path
@@ -119,6 +129,30 @@ class DirectMLBackendTests(unittest.TestCase):
             }
         )
 
+    @staticmethod
+    def _tiny_stage2_r5_directml_config():
+        return stage2_ladder_config_from_dict(
+            {
+                "revision": "stage2-r5.1",
+                "phase": "arithmetic_ladder",
+                "run_kind": "smoke",
+                "seed": 821501,
+                "device": "directml",
+                "deterministic": False,
+                "cpu_threads": 1,
+                "rung1_steps": 3,
+                "rung2_steps": 1,
+                "rung3_steps": 1,
+                "checkpoint_steps": 1,
+                "yield_ms": 0,
+                "model": {
+                    "hidden_dim": 8,
+                    "feedforward_dim": 16,
+                    "dropout": 0.0,
+                },
+            }
+        )
+
     def test_directml_stage2_hard_router_backward_runs_on_device(self) -> None:
         backend = resolve_backend("directml", cpu_threads=1, deterministic=False)
         batch = Stage2PrecedenceFamilyGenerator(20260809).balanced_block(
@@ -214,6 +248,53 @@ class DirectMLBackendTests(unittest.TestCase):
             self.assertEqual(restored.global_step, 2)
             self.assertEqual(restored.fixed_train_schedule, trainer.fixed_train_schedule)
             self.assertEqual(len(restored.training_family_hashes), 1680)
+            for optimizer in restored.optimizers.values():
+                for state in optimizer.state.values():
+                    self.assertEqual(state["exp_avg"].device.type, "privateuseone")
+                    self.assertEqual(state["exp_avg_sq"].device.type, "privateuseone")
+
+    def test_directml_stage2_r5_auxiliary_backward_and_bridge(self) -> None:
+        backend = resolve_backend("directml", cpu_threads=1, deterministic=False)
+        generated = ArithmeticLadderData(821501).batch("paired", "validation")
+        batch = generated.to(backend.device)
+        model = ArithmeticComposerModel(
+            LadderModelSpec(hidden_dim=8, feedforward_dim=16, dropout=0.0)
+        ).to(backend.device)
+        output = model(batch.model_input)
+        loss = torch.nn.functional.cross_entropy(
+            output.root_logits, batch.targets.final_labels
+        ) + torch.nn.functional.cross_entropy(
+            output.intermediate_logits[0], batch.targets.intermediate_labels[:, 0]
+        )
+        loss.backward()
+        backend.synchronize(next(model.parameters()))
+        with torch.no_grad():
+            bridged = bridge_root_logits(model, generated)
+        self.assertEqual(output.root_logits.device.type, "privateuseone")
+        self.assertLessEqual(
+            float((output.root_logits.detach().cpu() - bridged.detach().cpu()).abs().max()),
+            1e-5,
+        )
+        self.assertGreater(
+            sum(
+                float(parameter.grad.detach().square().sum().cpu().item())
+                for parameter in model.composer.parameters()
+                if parameter.grad is not None
+            ),
+            0.0,
+        )
+
+    def test_directml_stage2_r5_checkpoint_restores_optimizer_on_device(self) -> None:
+        config = self._tiny_stage2_r5_directml_config()
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)
+            original = Stage2LadderTrainer(config, path)
+            original.train_step()
+            checkpoint = original.save_checkpoint()
+            restored = Stage2LadderTrainer(config, path)
+            restored.load_checkpoint(checkpoint)
+            restored.train_step()
+            self.assertEqual(restored.global_round, 2)
             for optimizer in restored.optimizers.values():
                 for state in optimizer.state.values():
                     self.assertEqual(state["exp_avg"].device.type, "privateuseone")

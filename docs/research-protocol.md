@@ -307,3 +307,13 @@ D 用于判断“层级结构本身是否有帮助”。若 D 都不能优于 A�
 - R4 说明“小池子记忆”不是唯一障碍，但不能区分神经表示、组合信用分配、课程设计或 600 步预算中的哪一项是主因，也不能证明该架构永远无法学习。
 - 验证失败后，持久账本记录 `validation_failed`，最终 reserve 没有生成或评估。按协议不追加种子、不启动 learned routing 或连续相位。
 - 下一施工包必须先冻结算术因果阶梯：单步模七运算、固定查询组合、双查询 oracle 组合，以及仅用于诊断的中间节点监督。只有 B-oracle 和 D-true 在相应阶梯上稳定泛化后，才恢复路由实验。
+
+### 2026-08-09 Stage 2 R5.1 算术阶梯结论
+
+- R5.1 穷举 98 个二元加减事实，并把同一个 294-family 三元域预先划为 210 train、42 validation、42 reserve；固定 ADD、固定 SUB 与未来 paired 查询共用这一划分。
+- 两次独立施工复核先后发现并阻断了部分分支恢复、稳定 sham、按查询匹配 sham、答案/结构门混淆和 Rung 1 门间断电恢复问题。修复后两份复核均为 `ReadyForCalibration`，CPU 与 DirectML 全套各通过 `146/146`。
+- 唯一一次冻结 DirectML 运行完成 600 轮。Rung 1 在全部 98 个二元事实上达到 100%，说明基础算术表示在该预算内可学习。
+- 固定 ADD root 验证为 41/42，固定 SUB root 为 40/42，未达到零错误门，因此 disposition 为 `fixed_query_failed`，paired-query 模型没有创建。
+- 当正确第一步运算值被直接作为下一状态提供时，ADD/SUB teacher-state 都在 validation 与 reserve 达到 42/42。aux-true 虽能 100% 读出中间值，最终答案仍各错 1 个。
+- 结果与“自生成中间状态不能可靠作为下一次组合的操作数”或递归信用分配困难一致，但一个种子不能唯一证明原因。SUB aux-sham 通过而 aux-true 未通过，禁止声称辅助监督有效。
+- 不追加 R5.1 种子，不启动 paired-query、learned routing 或连续相位。下一施工包应先用状态对齐及匹配 sham 干预，检验 learned merge state 是否在操作上等价于 canonical literal state。

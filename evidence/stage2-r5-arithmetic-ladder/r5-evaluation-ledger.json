@@ -1,0 +1,845 @@
+{
+  "config_digest": "159adaaa5bbc6854ac862f071f6709a3a722140a9f711ed5195bb1eaa17d391a",
+  "packet": "DH-S2-R5.1",
+  "partition_digest": "1701144f08fe7b7ee72b30b210c4922a14a3a4da69694ebb092db0c2cbace2d1",
+  "rungs": {
+    "binary": {
+      "branches": {
+        "binary-root": {
+          "fit": {
+            "accuracy": 1.0,
+            "answer_passed": true,
+            "branch": "binary-root",
+            "bridge_max_abs_difference": 5.0961971282958984e-06,
+            "cross_entropy": 2.626573586894665e-05,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "59c637ddfd42035974b64ffd3a179ce15ff48abe431f81ce3e3b119ecc00bada",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+              ],
+              "label_counts": [
+                14,
+                14,
+                14,
+                14,
+                14,
+                14,
+                14
+              ],
+              "query_counts": [
+                98,
+                0
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "bbb07ce919c1efd24d2d6035dcf4a3a35babf15957ce45ffdee0311e2e94ca96",
+              "rows": 98,
+              "rung": "binary",
+              "split": "fit",
+              "unique_families": 98
+            },
+            "intermediate_accuracy_report_only": null,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": true,
+            "per_query_accuracy": {
+              "add": 1.0
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              14,
+              14,
+              14,
+              14,
+              14,
+              14,
+              14
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {}
+          },
+          "passed": true,
+          "reserve_state": "not_applicable",
+          "state": "complete"
+        }
+      },
+      "kind": "full_domain_fit_and_bridge",
+      "passed": true,
+      "passed_state_digest": "9c133c17c9dfcfe8bffbd8b71ea1a7d3ecd724dd037792be2fc6acc9e6b426ce",
+      "state": "complete"
+    },
+    "fixed": {
+      "branches": {
+        "fixed-add-aux-sham": {
+          "passed": false,
+          "reserve": null,
+          "reserve_admission_passed": false,
+          "reserve_state": "validation_failed",
+          "state": "complete",
+          "validation": {
+            "accuracy": 0.9761905074119568,
+            "answer_passed": false,
+            "branch": "fixed-add-aux-sham",
+            "bridge_max_abs_difference": 7.62939453125e-06,
+            "cross_entropy": 0.04199657589197159,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "dd693476eccb1afba71437fa434c579ecba3fe0ca447863f04853d49cf5d4955",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                5,
+                6,
+                6,
+                5,
+                4,
+                10
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                42,
+                0
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "a361e781b6d2f641be5c2b0bc530d6970748f8cb6a4031f1bee969b241218178",
+              "rows": 42,
+              "rung": "fixed-add",
+              "split": "validation",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 0.0,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": false,
+            "per_query_accuracy": {
+              "add": 0.9761905074119568
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              7,
+              5,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "validation_passed": false
+        },
+        "fixed-add-aux-true": {
+          "passed": false,
+          "reserve": null,
+          "reserve_admission_passed": false,
+          "reserve_state": "validation_failed",
+          "state": "complete",
+          "validation": {
+            "accuracy": 0.9761905074119568,
+            "answer_passed": false,
+            "branch": "fixed-add-aux-true",
+            "bridge_max_abs_difference": 6.9141387939453125e-06,
+            "cross_entropy": 0.049510154873132706,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "dd693476eccb1afba71437fa434c579ecba3fe0ca447863f04853d49cf5d4955",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                5,
+                6,
+                6,
+                5,
+                4,
+                10
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                42,
+                0
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "a361e781b6d2f641be5c2b0bc530d6970748f8cb6a4031f1bee969b241218178",
+              "rows": 42,
+              "rung": "fixed-add",
+              "split": "validation",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 1.0,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": false,
+            "per_query_accuracy": {
+              "add": 0.9761905074119568
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              6,
+              5,
+              6,
+              6,
+              6,
+              7
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "validation_passed": false
+        },
+        "fixed-add-root": {
+          "passed": false,
+          "reserve": null,
+          "reserve_admission_passed": false,
+          "reserve_state": "validation_failed",
+          "state": "complete",
+          "validation": {
+            "accuracy": 0.9761905074119568,
+            "answer_passed": false,
+            "branch": "fixed-add-root",
+            "bridge_max_abs_difference": 1.1920928955078125e-05,
+            "cross_entropy": 0.09760736674070358,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "dd693476eccb1afba71437fa434c579ecba3fe0ca447863f04853d49cf5d4955",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                5,
+                6,
+                6,
+                5,
+                4,
+                10
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                42,
+                0
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "a361e781b6d2f641be5c2b0bc530d6970748f8cb6a4031f1bee969b241218178",
+              "rows": 42,
+              "rung": "fixed-add",
+              "split": "validation",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 1.0,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": false,
+            "per_query_accuracy": {
+              "add": 0.9761905074119568
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              6,
+              5,
+              6,
+              6,
+              6,
+              7
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "validation_passed": false
+        },
+        "fixed-add-teacher": {
+          "passed": true,
+          "reserve": {
+            "accuracy": 1.0,
+            "answer_passed": true,
+            "branch": "fixed-add-teacher",
+            "bridge_max_abs_difference": null,
+            "cross_entropy": 0.0,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "864f7dcbb9df44764785b9b314a8f451a19f86d5df28cf1e160e206e19cac148",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                6,
+                8,
+                13,
+                5,
+                3,
+                1
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                42,
+                0
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "343f63e8c8ed4402b4cc2f42e5245d23e53a48888abbcf0c60942736aa19937d",
+              "rows": 42,
+              "rung": "fixed-add",
+              "split": "reserve",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 0.8571428656578064,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": true,
+            "per_query_accuracy": {
+              "add": 1.0
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "reserve_admission_passed": true,
+          "reserve_state": "complete",
+          "state": "complete",
+          "validation": {
+            "accuracy": 1.0,
+            "answer_passed": true,
+            "branch": "fixed-add-teacher",
+            "bridge_max_abs_difference": null,
+            "cross_entropy": 0.0,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "dd693476eccb1afba71437fa434c579ecba3fe0ca447863f04853d49cf5d4955",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                5,
+                6,
+                6,
+                5,
+                4,
+                10
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                42,
+                0
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "a361e781b6d2f641be5c2b0bc530d6970748f8cb6a4031f1bee969b241218178",
+              "rows": 42,
+              "rung": "fixed-add",
+              "split": "validation",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 0.9047619104385376,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": true,
+            "per_query_accuracy": {
+              "add": 1.0
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "validation_passed": true
+        },
+        "fixed-sub-aux-sham": {
+          "passed": true,
+          "reserve": {
+            "accuracy": 1.0,
+            "answer_passed": true,
+            "branch": "fixed-sub-aux-sham",
+            "bridge_max_abs_difference": 9.059906005859375e-06,
+            "cross_entropy": 0.0014183477032929659,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "864f7dcbb9df44764785b9b314a8f451a19f86d5df28cf1e160e206e19cac148",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                0,
+                42
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "0357f0e4f5b3ff6f11eacd2a3c868a2283cf39328a0fcc3ead572c0ef357242c",
+              "rows": 42,
+              "rung": "fixed-sub",
+              "split": "reserve",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 0.0,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": true,
+            "per_query_accuracy": {
+              "sub": 1.0
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "reserve_admission_passed": true,
+          "reserve_state": "complete",
+          "state": "complete",
+          "validation": {
+            "accuracy": 1.0,
+            "answer_passed": true,
+            "branch": "fixed-sub-aux-sham",
+            "bridge_max_abs_difference": 6.9141387939453125e-06,
+            "cross_entropy": 0.0014724459033459425,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "dd693476eccb1afba71437fa434c579ecba3fe0ca447863f04853d49cf5d4955",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                0,
+                42
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "9850335c8396a6cc569962f47fc97e079d9efeffe595deb031a599109cb0223a",
+              "rows": 42,
+              "rung": "fixed-sub",
+              "split": "validation",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 0.0,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": true,
+            "per_query_accuracy": {
+              "sub": 1.0
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "validation_passed": true
+        },
+        "fixed-sub-aux-true": {
+          "passed": false,
+          "reserve": null,
+          "reserve_admission_passed": false,
+          "reserve_state": "validation_failed",
+          "state": "complete",
+          "validation": {
+            "accuracy": 0.9761905074119568,
+            "answer_passed": false,
+            "branch": "fixed-sub-aux-true",
+            "bridge_max_abs_difference": 7.808208465576172e-06,
+            "cross_entropy": 0.06014345586299896,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "dd693476eccb1afba71437fa434c579ecba3fe0ca447863f04853d49cf5d4955",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                0,
+                42
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "9850335c8396a6cc569962f47fc97e079d9efeffe595deb031a599109cb0223a",
+              "rows": 42,
+              "rung": "fixed-sub",
+              "split": "validation",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 1.0,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": false,
+            "per_query_accuracy": {
+              "sub": 0.9761905074119568
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              7,
+              6,
+              6,
+              5,
+              6,
+              6
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "validation_passed": false
+        },
+        "fixed-sub-root": {
+          "passed": false,
+          "reserve": null,
+          "reserve_admission_passed": false,
+          "reserve_state": "validation_failed",
+          "state": "complete",
+          "validation": {
+            "accuracy": 0.9523809552192688,
+            "answer_passed": false,
+            "branch": "fixed-sub-root",
+            "bridge_max_abs_difference": 1.1563301086425781e-05,
+            "cross_entropy": 0.23232945799827576,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "dd693476eccb1afba71437fa434c579ecba3fe0ca447863f04853d49cf5d4955",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                0,
+                42
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "9850335c8396a6cc569962f47fc97e079d9efeffe595deb031a599109cb0223a",
+              "rows": 42,
+              "rung": "fixed-sub",
+              "split": "validation",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 0.8809524178504944,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": false,
+            "per_query_accuracy": {
+              "sub": 0.9523809552192688
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              7,
+              7,
+              6,
+              5,
+              6,
+              5
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "validation_passed": false
+        },
+        "fixed-sub-teacher": {
+          "passed": true,
+          "reserve": {
+            "accuracy": 1.0,
+            "answer_passed": true,
+            "branch": "fixed-sub-teacher",
+            "bridge_max_abs_difference": null,
+            "cross_entropy": 4.9528425734024495e-06,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "864f7dcbb9df44764785b9b314a8f451a19f86d5df28cf1e160e206e19cac148",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                0,
+                42
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "0357f0e4f5b3ff6f11eacd2a3c868a2283cf39328a0fcc3ead572c0ef357242c",
+              "rows": 42,
+              "rung": "fixed-sub",
+              "split": "reserve",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 0.8095238208770752,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": true,
+            "per_query_accuracy": {
+              "sub": 1.0
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "reserve_admission_passed": true,
+          "reserve_state": "complete",
+          "state": "complete",
+          "validation": {
+            "accuracy": 1.0,
+            "answer_passed": true,
+            "branch": "fixed-sub-teacher",
+            "bridge_max_abs_difference": null,
+            "cross_entropy": 4.9528425734024495e-06,
+            "data": {
+              "exact_solver_accuracy": 1.0,
+              "family_hash_digest": "dd693476eccb1afba71437fa434c579ecba3fe0ca447863f04853d49cf5d4955",
+              "input_only_lookup_accuracy": 1.0,
+              "intermediate_label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "label_counts": [
+                6,
+                6,
+                6,
+                6,
+                6,
+                6,
+                6
+              ],
+              "query_counts": [
+                0,
+                42
+              ],
+              "query_only_lookup_accuracy": 0.14285714285714285,
+              "row_hash_digest": "9850335c8396a6cc569962f47fc97e079d9efeffe595deb031a599109cb0223a",
+              "rows": 42,
+              "rung": "fixed-sub",
+              "split": "validation",
+              "unique_families": 42
+            },
+            "intermediate_accuracy_report_only": 0.9523809552192688,
+            "interventions": null,
+            "paired_family_both_correct": null,
+            "passed": true,
+            "per_query_accuracy": {
+              "sub": 1.0
+            },
+            "predicted_classes": 7,
+            "prediction_counts": [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            "structure_passed": true,
+            "two_literal_lookup_canaries": {
+              "0-1": 0.0,
+              "0-2": 0.0,
+              "1-2": 0.0
+            }
+          },
+          "validation_passed": true
+        }
+      },
+      "kind": "validation_then_reserve",
+      "passed_branches": [
+        "fixed-add-teacher",
+        "fixed-sub-teacher",
+        "fixed-sub-aux-sham"
+      ],
+      "state": "complete"
+    }
+  },
+  "schema_version": 1
+}

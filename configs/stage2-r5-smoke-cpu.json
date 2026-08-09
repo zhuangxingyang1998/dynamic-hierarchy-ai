@@ -1,0 +1,20 @@
+{
+  "revision": "stage2-r5.1",
+  "phase": "arithmetic_ladder",
+  "run_kind": "smoke",
+  "seed": 821501,
+  "device": "cpu",
+  "deterministic": true,
+  "cpu_threads": 2,
+  "rung1_steps": 1,
+  "rung2_steps": 1,
+  "rung3_steps": 1,
+  "checkpoint_steps": 1,
+  "time_budget_minutes": 5,
+  "yield_ms": 0,
+  "model": {
+    "hidden_dim": 16,
+    "feedforward_dim": 32,
+    "dropout": 0.0
+  }
+}

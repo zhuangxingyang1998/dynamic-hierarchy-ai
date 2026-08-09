@@ -8,7 +8,7 @@
 
 现在已经确认的是：在本项目的合成推理任务中，如果把正确结构提供给模型，它会获得巨大而稳定的优势。
 
-现在还没有确认的是：模型能不能自己发现这个结构。Stage 2 R2 的候选模型退化成了立即停止；R3 直接提供正确合并顺序后只记住了小训练池；R4 把独立训练 family 扩大 20 倍后，三种模型又都没有学会基础模七运算。因此问题目前卡在“组合运算为什么没有泛化”，还没有进入自主结构发现的有效检验。
+现在还没有确认的是：模型能不能自己发现这个结构。Stage 2 R2 的候选模型退化成了立即停止；R3 只记住小训练池；R4 扩大数据后仍没学会基础组合。R5.1 进一步发现：模型能学会全部单步加减，但把自己生成的中间状态递归用于下一步时仍会出错；直接提供正确中间状态则能完全通过。因此问题目前缩小到“怎样生成真正可继续运算的中间状态”，还没有进入自主结构发现的有效检验。
 
 ### 最初想法如何变成实验
 
@@ -152,7 +152,7 @@ D-true 获得的是外部提供的正确结构。因此，它接近 100% 不代�
 | --- | --- |
 | 正确层级结构是否有用？ | 已正式确认 |
 | 优势是否只是递归架构或更多计算造成的？ | D-sham 对照基本排除了这一解释 |
-| 模型能否自己发现合并边界？ | 尚未证明；R4 可行性门失败，路由实验仍暂停 |
+| 模型能否自己发现合并边界？ | 尚未证明；R5.1 固定查询门失败，路由实验仍暂停 |
 | 连续相位能否帮助决定合并时机？ | 尚未验证 |
 | 自主结构能否外推到更长推理链和新树形？ | 未知 |
 | 能否改善真实语言模型？ | 未知 |
@@ -206,13 +206,23 @@ R4 把独立训练 family 从 84 个增加到 1,680 个，同时保持总 family
 
 R4 四个必需验证格子全部失败，正式 disposition 为 `feasibility_failed`。验证账本在失败后封闭，336 个 reserve family 没有生成或评估。最稳妥的下一步不是立刻训练路由，而是把任务拆成“单步运算 -> 固定查询组合 -> 双查询 oracle 组合”的算术因果阶梯，分别检查表示能力、组合过程的信用分配和训练预算。
 
+### Stage 2 R5.1：单步学会了，递归中间状态还不可靠
+
+R5.1 实现了上述算术因果阶梯。第一层穷举全部 98 个二元加减事实；第二层让同一个算术状态分别处理固定 ADD-first 和 SUB-first；只有两个固定查询都零错误，才允许进入同输入双查询。
+
+唯一一次冻结 DirectML 运行中，第一层达到 98/98。第二层训练 300 次完整批次后，普通 ADD root 在 42 个验证 family 中答对 41 个，普通 SUB root 答对 40 个，因而正式结果是 `fixed_query_failed`，双查询层没有创建。
+
+最有诊断价值的是 teacher-state 对照：如果第一步运算后直接提供正确的模七值状态，ADD 和 SUB 在验证与 reserve 上都达到 42/42。两个 aux-true 分支虽然都能 100% 读出中间答案，最终答案仍各错 1 个。这说明“知道中间答案”与“形成下一步可以可靠使用的内部状态”不是同一件事。
+
+较合理但尚未唯一证明的解释是：当前瓶颈已从基础算术缩小到递归状态表示或跨组合信用分配。单个种子里 SUB aux-sham 反而通过，因此不能宣称真实辅助监督有效，也不应据此调参追结果。
+
 ### 对当前主流推理的意义
 
 当前结果还不是可以直接加入大语言模型的改进，也没有证明现有主流推理路线错误。
 
 它的研究价值在于确认了一项必要前提：在一个受控任务中，正确的层级组织确实比平坦输入和错误结构更有价值。如果 Stage 1 没有通过，就没有充分理由继续投入自主结构学习；现在这条研究路线获得了进入下一实验阶段的依据。
 
-Stage 2 R2、R3 和 R4 的负校准继续缩小了问题范围，但没有改变对主流推理的结论。R4 表明问题不只是小数据池记忆：在当前模型、课程和 600 步预算下，正确结构模型也没有学会扩大训练分布中的模七组合规则。只有后续模型先通过分级算术学习门，再稳定学会 query-dependent 合并并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
+Stage 2 R2 到 R5.1 的负校准继续缩小了问题范围，但没有改变对主流推理的结论。R5.1 表明单步算术可以学会，困难集中在把自生成中间状态稳定地用于下一次组合。只有后续模型先通过这个固定查询门，再稳定学会 query-dependent 合并并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
 
 ### 继续阅读
 
@@ -229,14 +239,17 @@ Stage 2 R2、R3 和 R4 的负校准继续缩小了问题范围，但没有改变
 - Stage 2 R4 施工包：[stage2-construction-packet-r4.md](docs/stage2-construction-packet-r4.md)
 - Stage 2 R4 可行性结果：[stage2-r4-feasibility-result-20260809.md](docs/stage2-r4-feasibility-result-20260809.md)
 - Stage 2 R4 公开证据：[evidence/stage2-r4-feasibility/README.md](evidence/stage2-r4-feasibility/README.md)
+- Stage 2 R5.1 施工包：[stage2-construction-packet-r5.md](docs/stage2-construction-packet-r5.md)
+- Stage 2 R5.1 算术阶梯结果：[stage2-r5-arithmetic-ladder-result-20260809.md](docs/stage2-r5-arithmetic-ladder-result-20260809.md)
+- Stage 2 R5.1 公开证据：[evidence/stage2-r5-arithmetic-ladder/README.md](evidence/stage2-r5-arithmetic-ladder/README.md)
 
 最简洁而准确的当前结论是：
 
-> 我们已经证明“正确结构值得学习”；但 R2 退化为立即停止，R3 记住了小训练池，R4 扩大数据后仍没有学会基础组合运算，所以“模型能够自己学会结构”仍未开始得到有效验证。
+> 我们已经证明“正确结构值得学习”，也确认模型能学会全部单步模七加减；但它自己生成的中间状态还不能稳定支撑下一步组合，所以“模型能够自己学会结构”仍未开始得到有效验证。
 
 ## Technical Reference
 
-This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but collapsed to immediate STOP. Stage 2 R3 verified oracle full reduction but overfit a small fixed family pool. Stage 2 R4 expanded unique training coverage 20-fold under equal total exposure; all three feasibility models remained near chance and failed validation. None of these results establishes learned hierarchy.
+This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but collapsed to immediate STOP. R3 and R4 failed oracle-structure arithmetic feasibility. R5.1 fitted all binary facts, but fixed-query root recursion missed held-out cases while teacher-state interventions passed perfectly. None of these results establishes learned hierarchy.
 
 ## Status
 
@@ -256,6 +269,8 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - R3's oracle structure execution was exact, but B-oracle and D-true failed every held-out feasibility gate after fitting the repeated training pools. Routing, extra seeds, and continuous phase remain blocked.
 - Stage 2 R4 adds exhaustive balanced train/validation/reserve partitions, uniform 40-block scheduling, persistent one-shot reserve gating, reconstruction receipts, and backward-compatible R2/R3 serialization.
 - The single R4 DirectML run completed 600 steps with 1,680 unique training families. All models remained near chance, all required validation gates failed, and the reserve remained unopened.
+- Stage 2 R5.1 adds an exhaustive arithmetic causal ladder, exact Rung 1 inheritance, matched teacher/auxiliary controls, causal tree interventions, and one-shot branch ledgers.
+- Its single DirectML run fitted all 98 binary facts. Fixed ADD root scored 41/42 and fixed SUB root 40/42, while both supplied teacher-state branches scored 42/42 on validation and reserve. The paired-query rung remained closed.
 
 **Candidate hypotheses, not results**
 
@@ -265,6 +280,7 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - Stage 2 R2 does not establish learned `MERGE/STOP`; its first calibration observed an all-STOP collapse.
 - Stage 2 R3 does not test learned routing; its `B-oracle` receives the correct source-only merge order, and the failed gate concerns held-out task generalization.
 - Stage 2 R4 also does not test learned routing. Its failure narrows the next question to arithmetic representation, composition credit assignment, curriculum, and budget without deciding among them.
+- Stage 2 R5.1 also does not test learned routing. Its one-seed result is consistent with an operational intermediate-state or recursive credit-assignment problem, but does not uniquely identify the cause.
 
 **Backend boundary**
 
