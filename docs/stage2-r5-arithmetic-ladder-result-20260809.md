@@ -89,6 +89,14 @@ state, but its self-generated first-merge state is not yet reliably usable by th
 second composition. This is consistent with a state-representation or recursive
 credit-assignment problem. It is not a unique causal proof.
 
+Post-hoc correction: `DH-S2-R5D-R1` later tested this working diagnosis by
+intervening directly on the retained states. Generated root states did control
+counterfactual arithmetic, while literal-state substitution made root accuracy
+worse. The refined issue is imperfect operational interchangeability among
+generated states with the same value, not general inability of the second
+composer to consume generated states. See
+`docs/stage2-r5-state-diagnostic-result-20260809.md`.
+
 The SUB aux-sham branch passed while SUB aux-true did not. In one seed this is a
 diagnostic warning, not evidence that false supervision is helpful. It prevents
 claiming a clean auxiliary-supervision effect and argues against tuning from

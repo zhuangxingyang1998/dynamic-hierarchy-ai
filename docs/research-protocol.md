@@ -317,3 +317,12 @@ D 用于判断“层级结构本身是否有帮助”。若 D 都不能优于 A�
 - 当正确第一步运算值被直接作为下一状态提供时，ADD/SUB teacher-state 都在 validation 与 reserve 达到 42/42。aux-true 虽能 100% 读出中间值，最终答案仍各错 1 个。
 - 结果与“自生成中间状态不能可靠作为下一次组合的操作数”或递归信用分配困难一致，但一个种子不能唯一证明原因。SUB aux-sham 通过而 aux-true 未通过，禁止声称辅助监督有效。
 - 不追加 R5.1 种子，不启动 paired-query、learned routing 或连续相位。下一施工包应先用状态对齐及匹配 sham 干预，检验 learned merge state 是否在操作上等价于 canonical literal state。
+
+### 2026-08-09 R5 状态因果诊断与 R6 决策
+
+- `DH-S2-R5D-R1` 只读取冻结 R5.1 最终 checkpoint 和 validation。它复现全部 8 个 fixed-query 分支，执行零次反向传播和优化器更新，两个 reserve 均未物化，checkpoint、partition、config、result 与 ledger 的哈希前后不变。
+- 把 root 模型的第一步状态替换成正确 literal embedding 并没有修复错误，反而降低了准确率。这说明 teacher-state 模型与 root 模型学到了不同的状态接口，不能跨模型直接类比。
+- 把第一步状态替换成错误数值的生成状态后，按原答案计分为 `0/42`，但按替换状态隐含的反事实算术答案计分达到 `41/42` 到 `42/42`。因此生成状态不是装饰性可读表示，而是在因果上控制第二次组合的算术语义。
+- 同值状态互换在 SUB root 上修复了两个错误，在 ADD root 上同时产生一次修复和一次损伤。当前证据不能唯一区分实例特异性变化与第二层决策边界过窄，但已否定“生成状态根本不可运算”的强解释。
+- R6 不再把 generated state 直接拉向 literal embedding，而拟比较同值状态操作一致性损失与严格计算匹配的 sham 分组损失。它仍是固定查询的可行性诊断，不包含 paired query、router、STOP 或连续相位。
+- `DH-S2-R6-R1` 当前为 `NotReadyForConstruction`。必须先由独立审计冻结 343-family 切分、伙伴置换、seed、预算、门槛、恢复语义和 DirectML 配置，之后才可施工；本轮不授权 R6 训练。

@@ -1,2 +1,3 @@
 evidence/stage1-formal-v4/results/*.json linguist-generated=true -diff
 evidence/stage2-r5-arithmetic-ladder/*.json -text linguist-generated=true -diff
+evidence/stage2-r5-state-diagnostic/*.json -text linguist-generated=true -diff

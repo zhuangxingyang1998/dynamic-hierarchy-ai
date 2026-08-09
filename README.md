@@ -8,7 +8,7 @@
 
 现在已经确认的是：在本项目的合成推理任务中，如果把正确结构提供给模型，它会获得巨大而稳定的优势。
 
-现在还没有确认的是：模型能不能自己发现这个结构。Stage 2 R2 的候选模型退化成了立即停止；R3 只记住小训练池；R4 扩大数据后仍没学会基础组合。R5.1 进一步发现：模型能学会全部单步加减，但把自己生成的中间状态递归用于下一步时仍会出错；直接提供正确中间状态则能完全通过。因此问题目前缩小到“怎样生成真正可继续运算的中间状态”，还没有进入自主结构发现的有效检验。
+现在还没有确认的是：模型能不能自己发现这个结构。Stage 2 R2 的候选模型退化成了立即停止；R3 只记住小训练池；R4 扩大数据后仍没学会基础组合。R5.1 证明模型能学会全部单步加减，但固定递归仍差 1 到 2 题。随后只读状态干预发现，模型生成的状态确实会因果控制下一步算术；更窄的问题是“表示同一个值的不同状态实例还不能保证完全等价”。因此项目仍未进入自主结构发现的有效检验。
 
 ### 最初想法如何变成实验
 
@@ -212,9 +212,11 @@ R5.1 实现了上述算术因果阶梯。第一层穷举全部 98 个二元加�
 
 唯一一次冻结 DirectML 运行中，第一层达到 98/98。第二层训练 300 次完整批次后，普通 ADD root 在 42 个验证 family 中答对 41 个，普通 SUB root 答对 40 个，因而正式结果是 `fixed_query_failed`，双查询层没有创建。
 
-最有诊断价值的是 teacher-state 对照：如果第一步运算后直接提供正确的模七值状态，ADD 和 SUB 在验证与 reserve 上都达到 42/42。两个 aux-true 分支虽然都能 100% 读出中间答案，最终答案仍各错 1 个。这说明“知道中间答案”与“形成下一步可以可靠使用的内部状态”不是同一件事。
+最有诊断价值的是 teacher-state 对照：如果一个分支从训练开始就消费标准 literal 状态，ADD 和 SUB 在验证与 reserve 上都达到 42/42。两个 aux-true 分支虽然都能 100% 读出中间答案，最终答案仍各错 1 个。但 teacher 与 root 是分别训练的模型，不能由此直接断定把 literal 状态塞进 root 就会修好它。
 
-较合理但尚未唯一证明的解释是：当前瓶颈已从基础算术缩小到递归状态表示或跨组合信用分配。单个种子里 SUB aux-sham 反而通过，因此不能宣称真实辅助监督有效，也不应据此调参追结果。
+后续只读诊断直接替换了 root 的第一步状态。把状态换成 literal embedding 反而降低准确率；把所有状态换成错误值的生成状态后，模型却仍能以 41/42 到 42/42 的准确率给出由那个错误值推导出的反事实答案。这说明第二层确实在使用生成状态的算术语义。现在更合理的假设是：同一个值的不同生成状态还带有实例差异，第二层没有对这些差异完全不变。
+
+这个诊断执行了零次反向传播和优化器更新，只读取 validation，两个 reserve 始终没有物化。它修正了解释，不修改 R5.1 的正式失败结果。
 
 ### 对当前主流推理的意义
 
@@ -222,7 +224,7 @@ R5.1 实现了上述算术因果阶梯。第一层穷举全部 98 个二元加�
 
 它的研究价值在于确认了一项必要前提：在一个受控任务中，正确的层级组织确实比平坦输入和错误结构更有价值。如果 Stage 1 没有通过，就没有充分理由继续投入自主结构学习；现在这条研究路线获得了进入下一实验阶段的依据。
 
-Stage 2 R2 到 R5.1 的负校准继续缩小了问题范围，但没有改变对主流推理的结论。R5.1 表明单步算术可以学会，困难集中在把自生成中间状态稳定地用于下一次组合。只有后续模型先通过这个固定查询门，再稳定学会 query-dependent 合并并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
+Stage 2 R2 到 R5 状态诊断继续缩小了问题范围，但没有改变对主流推理的结论。R5 现在表明单步算术可以学会，生成状态也被下一层因果使用；困难集中在同值状态的操作等价性。只有后续模型先通过这个固定查询门，再稳定学会 query-dependent 合并并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
 
 ### 继续阅读
 
@@ -242,14 +244,18 @@ Stage 2 R2 到 R5.1 的负校准继续缩小了问题范围，但没有改变对
 - Stage 2 R5.1 施工包：[stage2-construction-packet-r5.md](docs/stage2-construction-packet-r5.md)
 - Stage 2 R5.1 算术阶梯结果：[stage2-r5-arithmetic-ladder-result-20260809.md](docs/stage2-r5-arithmetic-ladder-result-20260809.md)
 - Stage 2 R5.1 公开证据：[evidence/stage2-r5-arithmetic-ladder/README.md](evidence/stage2-r5-arithmetic-ladder/README.md)
+- Stage 2 R5 状态诊断任务书：[stage2-r5-state-diagnostic-packet-r1.md](docs/stage2-r5-state-diagnostic-packet-r1.md)
+- Stage 2 R5 状态诊断结果：[stage2-r5-state-diagnostic-result-20260809.md](docs/stage2-r5-state-diagnostic-result-20260809.md)
+- Stage 2 R5 状态诊断证据：[evidence/stage2-r5-state-diagnostic/README.md](evidence/stage2-r5-state-diagnostic/README.md)
+- Stage 2 R6 施工包草案：[stage2-construction-packet-r6.md](docs/stage2-construction-packet-r6.md)
 
 最简洁而准确的当前结论是：
 
-> 我们已经证明“正确结构值得学习”，也确认模型能学会全部单步模七加减；但它自己生成的中间状态还不能稳定支撑下一步组合，所以“模型能够自己学会结构”仍未开始得到有效验证。
+> 我们已经证明“正确结构值得学习”，也确认模型能学会单步算术并让生成状态因果控制下一步运算；当前缺口是同值状态尚未完全可互换，所以“模型能够自己学会结构”仍未开始得到有效验证。
 
 ## Technical Reference
 
-This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but collapsed to immediate STOP. R3 and R4 failed oracle-structure arithmetic feasibility. R5.1 fitted all binary facts, but fixed-query root recursion missed held-out cases while teacher-state interventions passed perfectly. None of these results establishes learned hierarchy.
+This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but collapsed to immediate STOP. R3 and R4 failed oracle-structure arithmetic feasibility. R5.1 fitted all binary facts but missed a few held-out fixed-query cases. A read-only causal diagnostic then showed that generated states do control downstream arithmetic, while same-value state instances are not yet perfectly interchangeable. None of these results establishes learned hierarchy.
 
 ## Status
 
@@ -271,6 +277,7 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - The single R4 DirectML run completed 600 steps with 1,680 unique training families. All models remained near chance, all required validation gates failed, and the reserve remained unopened.
 - Stage 2 R5.1 adds an exhaustive arithmetic causal ladder, exact Rung 1 inheritance, matched teacher/auxiliary controls, causal tree interventions, and one-shot branch ledgers.
 - Its single DirectML run fitted all 98 binary facts. Fixed ADD root scored 41/42 and fixed SUB root 40/42, while both supplied teacher-state branches scored 42/42 on validation and reserve. The paired-query rung remained closed.
+- The read-only R5 state diagnostic reproduced all fixed branches with no reserve access or training. Generated-state transplants preserved counterfactual arithmetic at 41/42 to 42/42, while literal-state injection hurt root models; R6 therefore targets same-value operational congruence.
 
 **Candidate hypotheses, not results**
 
@@ -280,7 +287,7 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - Stage 2 R2 does not establish learned `MERGE/STOP`; its first calibration observed an all-STOP collapse.
 - Stage 2 R3 does not test learned routing; its `B-oracle` receives the correct source-only merge order, and the failed gate concerns held-out task generalization.
 - Stage 2 R4 also does not test learned routing. Its failure narrows the next question to arithmetic representation, composition credit assignment, curriculum, and budget without deciding among them.
-- Stage 2 R5.1 also does not test learned routing. Its one-seed result is consistent with an operational intermediate-state or recursive credit-assignment problem, but does not uniquely identify the cause.
+- The post-hoc state diagnostic narrows but does not prove the cause: generated states are operational, yet same-value instances are not perfectly interchangeable. R6 is a not-yet-audited diagnostic design, not an implemented result.
 
 **Backend boundary**
 
