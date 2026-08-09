@@ -1,0 +1,148 @@
+{
+  "files": [
+    {
+      "path": "pyproject.toml",
+      "sha256": "7E7E357F9373BDAE3FEBE988EE09BAAFE027FD37C5BD188A78A9FFB5442A1536"
+    },
+    {
+      "path": "scripts/run_stage2_congruence.py",
+      "sha256": "7D0825840F29E2756A76F8F12143B85331217A3A7E8470D600AC68A4C76D3009"
+    },
+    {
+      "path": "src/dynamic_hierarchy/__init__.py",
+      "sha256": "B644B001DC06BBFC1931E5D0B7AB9807FB9DBA4555FE746B96A6FD376F391A1E"
+    },
+    {
+      "path": "src/dynamic_hierarchy/backend.py",
+      "sha256": "26F38878522CA51FDDA53DF8267AB7DE0741C5A65DBA70A052620187BBF633E6"
+    },
+    {
+      "path": "src/dynamic_hierarchy/config.py",
+      "sha256": "37664D32FF659E16C538C46946AFD9D3EF45FC423A27AA6AB1458B6302E077C4"
+    },
+    {
+      "path": "src/dynamic_hierarchy/data.py",
+      "sha256": "54678CB95C4E75A4517B508C35F3D69B74FAEFAAA8F257C3D94D108B78A12105"
+    },
+    {
+      "path": "src/dynamic_hierarchy/hierarchy.py",
+      "sha256": "D7DD69B675D0683E613FF5189853683F625A4BBE5E97723D78FC93FC7670962F"
+    },
+    {
+      "path": "src/dynamic_hierarchy/model.py",
+      "sha256": "339690364864C2CC4287EFA7629FA64C7B8E08DC3D26A83A9D2C822B2CE45AC1"
+    },
+    {
+      "path": "src/dynamic_hierarchy/optim.py",
+      "sha256": "02F09E8E8BDB85B08ED2F8CCA36AFC7F5FABA1ED9C3E209E492F16677141FE2C"
+    },
+    {
+      "path": "src/dynamic_hierarchy/process_registry.py",
+      "sha256": "FB516672B7719D1C04FD9C1CABA1E8BEB620DAE7B978B2036A1FB8E3276C5911"
+    },
+    {
+      "path": "src/dynamic_hierarchy/provenance.py",
+      "sha256": "E62F28A868AE9E027340C9C82F3E223A98F4095DC6C8117C5E22AE44F3388583"
+    },
+    {
+      "path": "src/dynamic_hierarchy/reporting.py",
+      "sha256": "EF06E39E13D684F25DE694415A385E7A05E63C5C382FA220F06949A14D26B766"
+    },
+    {
+      "path": "src/dynamic_hierarchy/resource_guard.py",
+      "sha256": "56AA32A555942B5E43F1BD0070A9F66F69A443EFC96EE35D7A3948D9B421D2FA"
+    },
+    {
+      "path": "src/dynamic_hierarchy/run_lock.py",
+      "sha256": "AAA25B0D2CF8FAED481DD801AF5AE3A352B02680CAF1F94F38C472351C30B676"
+    },
+    {
+      "path": "src/dynamic_hierarchy/snapshot.py",
+      "sha256": "E0F127711FCEDBE75FD6E076C0A07610349A01B3DD9B194E2C1726BD7E659798"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage1_campaign.py",
+      "sha256": "BE6273F38DD6F353F7D2C466FAB90A64F121E4A6C3CDF56B72769546E8F10ACB"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage1_config.py",
+      "sha256": "837922BB856A6D333211A40FD964D8BBDAF9D92FEB600C9CA0BB9846A6E6BA0D"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage1_confirmation.py",
+      "sha256": "202C3D0E7D2B2EB977ADF843F5CF4CA8FF0FDDC7D6AC8D6FAE72DCFBEB999A80"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage1_data.py",
+      "sha256": "0ACF2C2C054884F1B6A0281D9C37D706B65A3F938FA83E798B5E25563FA0C437"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage1_integrity.py",
+      "sha256": "9762970D38E41693127EA0D354137966974313D6B153C1BEC2B60AA5F305785A"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage1_runtime.py",
+      "sha256": "E86CAD81EEA97AE3292C2B87BAE8049AC7FD607F7435336070E96AE024E096B7"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_config.py",
+      "sha256": "A1262D26F39E255558E5A7E17C7211913569ACE4D61A0B177C1D8781C3B02545"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_congruence_config.py",
+      "sha256": "14525B69F223DF988D31E4B6B5A836054955B3CCC62EDA59EFDC24906CA0464F"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_congruence_data.py",
+      "sha256": "5482BEF20D64BFF9267C1E78262C419394DB238A7C26FA40DF0126ECFA5BC09A"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_congruence_model.py",
+      "sha256": "B5276EF7D1FEA6B684825EF35854D5A0E01AE6079E351B70B92F5FA10C20959D"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_congruence_runtime.py",
+      "sha256": "BF2A61E22E3DCCC90F053CB3F17D9BB8EB13490A8CD96CBE9EC8ECE9413C2D18"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_data.py",
+      "sha256": "280076EE8451E06CADA97012DF6E99C56AFDCE1D543EB196C979FEC51366F16C"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_ladder_config.py",
+      "sha256": "72108BFD47A44CF15438C98BC532115458E6BF5DDE6E6CA660E339A0452F787E"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_ladder_data.py",
+      "sha256": "5D9F04BFD8D4661C81B9B84D46254EC20F212A8590C6570D18D772ED74FEFDA6"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_ladder_model.py",
+      "sha256": "5C1DFAA169DE556A7D8E3A14E0CFA2CB28F35E45A8F895CB3074C6DBB2450A53"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_ladder_runtime.py",
+      "sha256": "B168DB5F60B320B16DB0B16A6497FB3D0062C08D59425A7AF1860F8C0C58634B"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_model.py",
+      "sha256": "B2153A489CA872469E96C5A3DAA4E07A973DE3AC16B5AC3D8D312BED0AAAFCD0"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_runtime.py",
+      "sha256": "45DCA6F9A5535438B22C6D8338C4C90ED3AD0B30DE890D564E9CB67D318E38A4"
+    },
+    {
+      "path": "src/dynamic_hierarchy/stage2_state_diagnostic.py",
+      "sha256": "75C285E3622BDFAFB66FFBDA59CDD3ED2B062460D201AE9056227EEBC62B83E9"
+    },
+    {
+      "path": "src/dynamic_hierarchy/training.py",
+      "sha256": "FB72FCD5B786822BC69D1CFA118C75AA90EB76DCC06FBCE00CB3F765BE23B16B"
+    }
+  ],
+  "packet": "DH-S2-R6-R7",
+  "schema_version": 1,
+  "source_digest": "51e8dd5ec7f4917121e392c8d9b4ebf756bb687f420e24ac00f261fb12cb8e10",
+  "source_root": "C:\\Users\\kei`z\\Documents\\Codex\\dynamic-hierarchy-ai"
+}

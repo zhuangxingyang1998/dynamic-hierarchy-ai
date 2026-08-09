@@ -1,0 +1,22 @@
+{
+  "detail": "terminal_gate_reached",
+  "elapsed_seconds": 334.344000000041,
+  "execution_disposition": "completed",
+  "global_round": 306,
+  "mutex": {
+    "kind": "Windows named mutex",
+    "name": "Local\\DynamicHierarchyStage1-9875fd1931507ff97bdbeef992204c943b20f451c38e4c4fdbe03d9b7d24cc32",
+    "owned": true
+  },
+  "packet": "DH-S2-R6-R7",
+  "research_disposition": "task_ceiling",
+  "reserve_state": "not_opened",
+  "result": "runs\\stage2-r6-congruence-directml-821601\\result.json",
+  "run_instance_digest": "38f97dc81628ea38928b30418f9e36f1a9392dfb6a8e273486abd2aaaeb88519",
+  "schema_version": 3,
+  "source_snapshot_digest": "51e8dd5ec7f4917121e392c8d9b4ebf756bb687f420e24ac00f261fb12cb8e10",
+  "stage_step": 306,
+  "state": "completed",
+  "target_steps": 306,
+  "updated_at": "2026-08-09T16:11:10.875088+00:00"
+}

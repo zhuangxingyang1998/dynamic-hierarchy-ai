@@ -1,0 +1,9 @@
+{
+  "config_digest": "028bda8f1ee50ef5c43669e00e9f7f1378ab7bfd38f42a597cdb6e7f229813e3",
+  "packet": "DH-S2-R6-R7",
+  "partition_digest": "8425fa0161ac6682d4644e7350bc4d80d41fe498de03b8313a64364218f5fa52",
+  "run_dir": "C:\\Users\\kei`z\\Documents\\Codex\\dynamic-hierarchy-ai\\runs\\stage2-r6-congruence-directml-821601",
+  "run_instance_id": "df6a26bf02dd4f3faa6e17f799af4d76",
+  "schema_version": 2,
+  "source_snapshot_digest": "51e8dd5ec7f4917121e392c8d9b4ebf756bb687f420e24ac00f261fb12cb8e10"
+}

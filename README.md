@@ -8,7 +8,9 @@
 
 现在已经确认的是：在本项目的合成推理任务中，如果把正确结构提供给模型，它会获得巨大而稳定的优势。
 
-现在还没有确认的是：模型能不能自己发现这个结构。Stage 2 R2 的候选模型退化成了立即停止；R3 只记住小训练池；R4 扩大数据后仍没学会基础组合。R5.1 证明模型能学会全部单步加减，但固定递归仍差 1 到 2 题。随后只读状态干预发现，模型生成的状态确实会因果控制下一步算术；更窄的问题是“表示同一个值的不同状态实例还不能保证完全等价”。因此项目仍未进入自主结构发现的有效检验。
+现在还没有确认的是：模型能不能自己发现这个结构。Stage 2 R2 的候选模型退化成了立即停止；R3 只记住小训练池；R4 扩大数据后仍没学会基础组合。R5.1 证明模型能学会全部单步加减，但固定递归仍差 1 到 2 题。随后只读状态干预发现，模型生成的状态确实会因果控制下一步算术。
+
+R6 进一步训练“同值状态应当可以互换”，但实验任务出现了天花板：未经这种训练的 SUB root 已经答对全部 `2401/2401` 个状态替换，错误值混合对照也全部通过。因此这轮只能确认实现和训练链有效，不能证明收益来自状态同余。项目仍未进入自主结构发现的有效检验。
 
 ### 最初想法如何变成实验
 
@@ -152,7 +154,8 @@ D-true 获得的是外部提供的正确结构。因此，它接近 100% 不代�
 | --- | --- |
 | 正确层级结构是否有用？ | 已正式确认 |
 | 优势是否只是递归架构或更多计算造成的？ | D-sham 对照基本排除了这一解释 |
-| 模型能否自己发现合并边界？ | 尚未证明；R5.1 固定查询门失败，路由实验仍暂停 |
+| 同值状态训练是否带来特异性收益？ | R6 任务天花板；根模型和错误值对照也能通过，无法归因 |
+| 模型能否自己发现合并边界？ | 尚未证明；路由实验仍暂停 |
 | 连续相位能否帮助决定合并时机？ | 尚未验证 |
 | 自主结构能否外推到更长推理链和新树形？ | 未知 |
 | 能否改善真实语言模型？ | 未知 |
@@ -218,13 +221,24 @@ R5.1 实现了上述算术因果阶梯。第一层穷举全部 98 个二元加�
 
 这个诊断执行了零次反向传播和优化器更新，只读取 validation，两个 reserve 始终没有物化。它修正了解释，不修改 R5.1 的正式失败结果。
 
+### Stage 2 R6：训练链通过，但任务无法区分机制
+
+R6 在一个全新的 `+-` 三元表达式域上，把“相同模七中间值的状态应当可互换”写成训练目标。十个隔离分支各完成 `306` 次完整批次更新，验证穷举 `49` 个普通 family、`343` 个同值替换、`2401` 个全状态替换和其中 `2058` 个错误值替换。
+
+同值训练分支和 teacher 分支全部零错误，但两个关键现象阻止了正面结论：
+
+- 未接受同值训练的 SUB root 已经在全状态替换上达到 `2401/2401`，所以任务对它过于容易。
+- 使用合法错误值配对的 mixed-counterfactual 对照也在 ADD 和 SUB 上达到 `2401/2401`，所以成功并非同值分组独有。
+
+ADD root 仍有 7 个全状态错误，达到 `2394/2401`；SUB root 的零错误触发了预注册的 `task_ceiling` 停止规则。最终 reserve 没有打开，也没有追加种子。R6 因而不是“同余训练有效”的证据，而是发现当前固定查询 benchmark 缺乏辨别力。下一步必须设计更难的任务，使 root、自复制和错误值混合对照先失败，同时让真正的同值约束有机会产生独有收益。
+
 ### 对当前主流推理的意义
 
 当前结果还不是可以直接加入大语言模型的改进，也没有证明现有主流推理路线错误。
 
 它的研究价值在于确认了一项必要前提：在一个受控任务中，正确的层级组织确实比平坦输入和错误结构更有价值。如果 Stage 1 没有通过，就没有充分理由继续投入自主结构学习；现在这条研究路线获得了进入下一实验阶段的依据。
 
-Stage 2 R2 到 R5 状态诊断继续缩小了问题范围，但没有改变对主流推理的结论。R5 现在表明单步算术可以学会，生成状态也被下一层因果使用；困难集中在同值状态的操作等价性。只有后续模型先通过这个固定查询门，再稳定学会 query-dependent 合并并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
+Stage 2 R2 到 R6 继续缩小了问题范围，但没有改变对主流推理的结论。R5 表明单步算术可以学会，生成状态也被下一层因果使用；R6 则表明当前任务太容易，不能判断同值训练是否解决了实例差异。只有更有辨别力的固定查询任务先显示特异性收益，后续模型再稳定学会 query-dependent 合并并胜过查询盲、固定、sham 和计算匹配控制，才值得测试长上下文、自然语言和真实推理任务。
 
 ### 继续阅读
 
@@ -247,15 +261,17 @@ Stage 2 R2 到 R5 状态诊断继续缩小了问题范围，但没有改变对�
 - Stage 2 R5 状态诊断任务书：[stage2-r5-state-diagnostic-packet-r1.md](docs/stage2-r5-state-diagnostic-packet-r1.md)
 - Stage 2 R5 状态诊断结果：[stage2-r5-state-diagnostic-result-20260809.md](docs/stage2-r5-state-diagnostic-result-20260809.md)
 - Stage 2 R5 状态诊断证据：[evidence/stage2-r5-state-diagnostic/README.md](evidence/stage2-r5-state-diagnostic/README.md)
-- Stage 2 R6 施工包草案：[stage2-construction-packet-r6.md](docs/stage2-construction-packet-r6.md)
+- Stage 2 R6 施工包：[stage2-construction-packet-r6.md](docs/stage2-construction-packet-r6.md)
+- Stage 2 R6 状态同余结果：[stage2-r6-state-congruence-result-20260810.md](docs/stage2-r6-state-congruence-result-20260810.md)
+- Stage 2 R6 公开证据：[evidence/stage2-r6-state-congruence/README.md](evidence/stage2-r6-state-congruence/README.md)
 
 最简洁而准确的当前结论是：
 
-> 我们已经证明“正确结构值得学习”，也确认模型能学会单步算术并让生成状态因果控制下一步运算；当前缺口是同值状态尚未完全可互换，所以“模型能够自己学会结构”仍未开始得到有效验证。
+> 我们已经证明“正确结构值得学习”，也确认模型能学会单步算术并让生成状态因果控制下一步运算；R6 尝试训练同值状态互换，却发现根模型和错误值对照也能通过，所以当前缺口变成了“先造出真正能区分机制的任务”。模型能否自己学会结构仍未得到有效验证。
 
 ## Technical Reference
 
-This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but collapsed to immediate STOP. R3 and R4 failed oracle-structure arithmetic feasibility. R5.1 fitted all binary facts but missed a few held-out fixed-query cases. A read-only causal diagnostic then showed that generated states do control downstream arithmetic, while same-value state instances are not yet perfectly interchangeable. None of these results establishes learned hierarchy.
+This is a Windows CPU/DirectML research harness for controlled symbolic reasoning. Stage 0 provides the ordinary Transformer baseline. Revised Stage 1 compares A, privileged-structure D-true, and architecture-matched D-sham. Stage 2 R2 implements learned hard routing and matched interventions, but collapsed to immediate STOP. R3 and R4 failed oracle-structure arithmetic feasibility. R5.1 fitted all binary facts but missed a few held-out fixed-query cases. A read-only causal diagnostic then showed that generated states do control downstream arithmetic. R6 trained operational same-value congruence, but the root and mixed-counterfactual controls also passed, producing a preregistered task ceiling rather than a mechanism-specific result. None of these results establishes learned hierarchy.
 
 ## Status
 
@@ -278,6 +294,8 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - Stage 2 R5.1 adds an exhaustive arithmetic causal ladder, exact Rung 1 inheritance, matched teacher/auxiliary controls, causal tree interventions, and one-shot branch ledgers.
 - Its single DirectML run fitted all 98 binary facts. Fixed ADD root scored 41/42 and fixed SUB root 40/42, while both supplied teacher-state branches scored 42/42 on validation and reserve. The paired-query rung remained closed.
 - The read-only R5 state diagnostic reproduced all fixed branches with no reserve access or training. Generated-state transplants preserved counterfactual arithmetic at 41/42 to 42/42, while literal-state injection hurt root models; R6 therefore targets same-value operational congruence.
+- Stage 2 R6 completed the single authorized 306-update DirectML diagnostic across ten isolated branches. All exact accounting and source-binding invariants passed, and the reserve remained unopened.
+- R6 ended as `task_ceiling`: fixed SUB root, both congruence-true branches, both teacher branches, and both mixed-counterfactual controls reached 2401/2401 all-state accuracy. This does not identify a congruence-specific benefit.
 
 **Candidate hypotheses, not results**
 
@@ -287,7 +305,7 @@ This is a Windows CPU/DirectML research harness for controlled symbolic reasonin
 - Stage 2 R2 does not establish learned `MERGE/STOP`; its first calibration observed an all-STOP collapse.
 - Stage 2 R3 does not test learned routing; its `B-oracle` receives the correct source-only merge order, and the failed gate concerns held-out task generalization.
 - Stage 2 R4 also does not test learned routing. Its failure narrows the next question to arithmetic representation, composition credit assignment, curriculum, and budget without deciding among them.
-- The post-hoc state diagnostic narrows but does not prove the cause: generated states are operational, yet same-value instances are not perfectly interchangeable. R6 is a not-yet-audited diagnostic design, not an implemented result.
+- The R6 task ceiling leaves the same-value hypothesis unresolved. A harder benchmark must first make root, self-duplicate, and mixed-counterfactual controls fail before congruence-specific training can support a causal claim.
 
 **Backend boundary**
 

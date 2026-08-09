@@ -29,6 +29,16 @@ from dynamic_hierarchy.stage2_ladder_model import (
     bridge_root_logits,
 )
 from dynamic_hierarchy.stage2_ladder_runtime import Stage2LadderTrainer
+from dynamic_hierarchy.stage2_congruence_config import (
+    load_stage2_congruence_config,
+)
+from dynamic_hierarchy.stage2_congruence_data import (
+    StateCongruenceData,
+    counterfactual_labels,
+    partner_source_indices,
+)
+from dynamic_hierarchy.stage2_congruence_model import StateCongruenceModel
+from dynamic_hierarchy.stage2_congruence_runtime import Stage2CongruenceTrainer
 
 import tempfile
 from pathlib import Path
@@ -299,6 +309,71 @@ class DirectMLBackendTests(unittest.TestCase):
                 for state in optimizer.state.values():
                     self.assertEqual(state["exp_avg"].device.type, "privateuseone")
                     self.assertEqual(state["exp_avg_sq"].device.type, "privateuseone")
+
+    def test_directml_stage2_r6_matched_backward_runs_on_device(self) -> None:
+        backend = resolve_backend("directml", cpu_threads=1, deterministic=False)
+        generated = StateCongruenceData().batch(0, "train")
+        batch = generated.to(backend.device)
+        source_cpu = partner_source_indices(
+            generated, "mixed-counterfactual", 1
+        )
+        source = source_cpu.to(backend.device)
+        model = StateCongruenceModel(
+            LadderModelSpec(hidden_dim=8, feedforward_dim=16, dropout=0.0)
+        ).to(backend.device)
+        output = model(batch.model_input, source_indices=source)
+        source_values = generated.targets.intermediate_labels[source_cpu, 0]
+        counterfactual = counterfactual_labels(
+            generated, torch.arange(245), source_values
+        ).to(backend.device)
+        loss = (
+            torch.nn.functional.cross_entropy(
+                output.ordinary_logits, batch.targets.final_labels
+            )
+            + torch.nn.functional.cross_entropy(
+                output.intervention_logits, counterfactual
+            )
+        ) / 2.0
+        loss.backward()
+        backend.synchronize(next(model.parameters()))
+        self.assertEqual(output.ordinary_logits.device.type, "privateuseone")
+        self.assertEqual(output.intervention_logits.device.type, "privateuseone")
+        self.assertGreater(
+            sum(
+                float(parameter.grad.detach().square().sum().cpu().item())
+                for parameter in model.composer.parameters()
+                if parameter.grad is not None
+            ),
+            0.0,
+        )
+
+    def test_directml_stage2_r6_checkpoint_restores_optimizer_on_device(self) -> None:
+        config = load_stage2_congruence_config(
+            ROOT / "configs/stage2-r6-smoke-directml.json"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)
+            original = Stage2CongruenceTrainer(
+                config, path, allow_create_run_instance=True
+            )
+            original.train_step()
+            checkpoint = original.save_checkpoint()
+            restored = Stage2CongruenceTrainer(config, path)
+            restored.load_checkpoint(checkpoint)
+            self.assertEqual(restored.global_round, 1)
+            for optimizer in restored.optimizers.values():
+                for state in optimizer.state.values():
+                    self.assertEqual(state["exp_avg"].device.type, "privateuseone")
+                    self.assertEqual(state["exp_avg_sq"].device.type, "privateuseone")
+            ledger = restored.run_gate()
+            self.assertEqual(ledger["validation_state"], "complete")
+            self.assertEqual(ledger["true_reserve_state"], "not_opened")
+            self.assertEqual(
+                ledger["validation_binding"], restored._state_binding()
+            )
+            self.assertTrue(
+                all(restored._training_receipt_checks(1).values())
+            )
 
     def test_directml_tensor_and_backward(self) -> None:
         backend = resolve_backend("directml", cpu_threads=1, deterministic=False)
